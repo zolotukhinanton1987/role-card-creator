@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Карта Посади — Промавтоматика</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/docx@8.2.4/build/index.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <style>
+    :root {
+      --primary:        #1a3561;
+      --primary-dark:   #0f2040;
+      --primary-light:  #2a4a7f;
+      --accent:         #f5a623;
+      --accent-dark:    #d48a0f;
+      --accent-light:   #fff4dc;
+      --yellow-hl:      #fff59d;
+      --gray-hl:        #e8ecf0;
+      --bg:             #f0f3f9;
+      --card:           #ffffff;
+      --text:           #1a2744;
+      --text-muted:     #5a6a8a;
+      --border:         #dde3f0;
+      --success:        #22c55e;
+      --success-light:  #f0fdf4;
+      --error:          #ef4444;
+      --error-light:    #fef2f2;
+      --radius:         12px;
+      --shadow:         0 2px 16px rgba(26,53,97,0.10);
+      --shadow-lg:      0 8px 32px rgba(26,53,97,0.16);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    .site-header {
+      background: var(--primary);
+      color: #fff;
+      padding: 0 32px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: #fff;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 18px; color: var(--primary);
+    }
+    .logo-text { font-weight: 700; font-size: 16px; letter-spacing: 0.02em; }
+    .logo-sub { font-size: 11px; font-weight: 400; opacity: 0.7; letter-spacing: 0.05em; text-transform: uppercase; }
+    .header-badge {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── PROGRESS BAR ── */
+    .progress-bar {
+      background: var(--primary-dark);
+      padding: 0 32px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .progress-bar::-webkit-scrollbar { display: none; }
+    .progress-step {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      color: rgba(255,255,255,0.5);
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    .progress-step.active { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.1); }
+    .progress-step.done { color: var(--success); background: rgba(34,197,94,0.12); }
+    .progress-dot {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      border: 2px solid currentColor;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 700;
+      transition: all 0.3s;
+      flex-shrink: 0;
+    }
+    .progress-step.done .progress-dot { background: var(--success); border-color: var(--success); color: #fff; }
+    .progress-sep { color: rgba(255,255,255,0.2); font-size: 14px; flex-shrink: 0; }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 60%, #3560a0 100%);
+      color: #fff;
+      padding: 64px 32px 56px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -80px;
+      width: 320px; height: 320px;
+      border-radius: 50%;
+      background: rgba(245,166,35,0.08);
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: -60px;
+      width: 240px; height: 240px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+    }
+    .hero-tag {
+      display: inline-block;
+      background: rgba(245,166,35,0.2);
+      border: 1px solid rgba(245,166,35,0.4);
+      color: #fbd270;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero-desc {
+      font-size: 16px;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.8);
+      max-width: 600px;
+      margin: 0 auto 32px;
+    }
+    .hero-steps {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .hero-step {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: rgba(255,255,255,0.75);
+    }
+    .hero-step-num {
+      width: 24px; height: 24px;
+      background: var(--accent);
+      border-radius: 50%;
+      color: var(--primary-dark);
+      font-weight: 700;
+      font-size: 11px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── MAIN CONTAINER ── */
+    .container { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+
+    /* ── SECTION CARD ── */
+    .section-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin: 24px 0;
+      overflow: hidden;
+      border: 2px solid transparent;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .section-card.accepted {
+      border-color: var(--success);
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.1), var(--shadow);
+    }
+    .section-header {
+      background: var(--primary);
+      color: #fff;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .section-header-left { display: flex; align-items: center; gap: 12px; }
+    .section-num {
+      width: 32px; height: 32px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px;
+      flex-shrink: 0;
+    }
+    .section-title { font-weight: 700; font-size: 16px; }
+    .section-subtitle { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+    .section-check {
+      display: none;
+      background: var(--success);
+      border-radius: 50%;
+      width: 28px; height: 28px;
+      align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .section-card.accepted .section-check { display: flex; }
+    .section-card.accepted .section-num { background: rgba(34,197,94,0.3); }
+
+    /* ── SECTION BODY ── */
+    .section-body { padding: 24px; }
+
+    /* ── INFO BOXES ── */
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    @media (max-width: 600px) { .info-grid { grid-template-columns: 1fr; } }
+    .info-box {
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .info-box.purpose {
+      background: #f0f5ff;
+      border-left: 3px solid var(--primary-light);
+    }
+    .info-box.example {
+      background: var(--accent-light);
+      border-left: 3px solid var(--accent);
+    }
+    .info-box-label {
+      font-weight: 700;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+      opacity: 0.6;
+    }
+    .info-box.purpose .info-box-label { color: var(--primary); }
+    .info-box.example .info-box-label { color: var(--accent-dark); }
+
+    /* ── FORM INPUTS ── */
+    .field-label {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .field-label .req { color: var(--error); }
+    .field-hint { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+    textarea, input[type="text"] {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 13px;
+      color: var(--text);
+      background: #fafbff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      resize: vertical;
+      line-height: 1.6;
+    }
+    textarea:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary-light);
+      box-shadow: 0 0 0 3px rgba(42,74,127,0.12);
+      background: #fff;
+    }
+    textarea.error, input[type="text"].error {
+      border-color: var(--error);
+      box-shadow: 0 0 0 3px rgba(239,68,68,0.1);
+    }
+    .char-counter {
+      text-align: right;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ── ZONES ── */
+    .zone-item {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+      background: #fafbff;
+      position: relative;
+      transition: border-color 0.2s;
+    }
+    .zone-item:hover { border-color: var(--primary-light); }
+    .zone-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .zone-num-badge {
+      background: var(--primary);
+      color: #fff;
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .zone-remove-btn {
+      background: none;
+      border: 1.5px solid var(--error);
+      color: var(--error);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .zone-remove-btn:hover { background: var(--error-light); }
+    .zone-field { margin-bottom: 14px; }
+    .add-zone-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: none;
+      border: 2px dashed var(--border);
+      color: var(--text-muted);
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+      justify-content: center;
+      transition: all 0.2s;
+      margin-bottom: 20px;
+    }
+    .add-zone-btn:hover {
+      border-color: var(--primary-light);
+      color: var(--primary);
+      background: #f0f5ff;
+    }
+
+    /* ── ORG FIELDS ── */
+    .org-grid { display: grid; gap: 16px; }
+
+    /* ── ACCEPT BTN ── */
+    .accept-btn {
+      background: var(--accent);
+      color: var(--primary-dark);
+      border: none;
+      border-radius: 8px;
+      padding: 11px 28px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .accept-btn:hover { background: var(--accent-dark); box-shadow: 0 4px 12px rgba(245,166,35,0.35); }
+    .accept-btn:active { transform: scale(0.98); }
+    .section-footer {
+      padding: 0 24px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .error-msg {
+      color: var(--error);
+      font-size: 13px;
+      font-weight: 500;
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+    .accepted-tag {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      color: var(--success);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .section-card.accepted .accepted-tag { display: flex; }
+    .section-card.accepted .accept-btn { background: #e8f5e9; color: #1b5e20; }
+    .section-card.accepted .accept-btn:hover { background: #c8e6c9; }
+
+    /* ── DIVIDER ── */
+    .section-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 0 24px 20px;
+    }
+
+    /* ── CREATE BTN AREA ── */
+    .create-area {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      padding: 36px;
+      text-align: center;
+      margin: 32px 0;
+    }
+    .create-area h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .create-area p { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+    .progress-checklist {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+    .check-item.pending { background: #f0f3f9; color: var(--text-muted); }
+    .check-item.done { background: var(--success-light); color: var(--success); }
+    .check-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .create-btn {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 16px 48px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 20px rgba(26,53,97,0.3);
+      letter-spacing: 0.01em;
+    }
+    .create-btn:disabled {
+      background: #c8d0e0;
+      color: #fff;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .create-btn:not(:disabled):hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(26,53,97,0.4);
+    }
+
+    /* ── RESULT AREA ── */
+    .result-area {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      padding: 36px;
+      text-align: center;
+      margin: 24px 0 48px;
+      border: 2px solid var(--success);
+      display: none;
+    }
+    .result-area.visible { display: block; }
+    .result-icon {
+      width: 72px; height: 72px;
+      background: var(--success-light);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      margin: 0 auto 20px;
+      animation: pop 0.4s ease;
+    }
+    @keyframes pop {
+      0% { transform: scale(0.5); opacity: 0; }
+      80% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .result-title { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .result-desc { color: var(--text-muted); font-size: 14px; margin-bottom: 28px; }
+    .download-btn {
+      background: var(--success);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 36px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 16px rgba(34,197,94,0.3);
+    }
+    .download-btn:hover { background: #16a34a; box-shadow: 0 6px 20px rgba(34,197,94,0.4); transform: translateY(-1px); }
+    .regenerate-btn {
+      background: none;
+      border: 1.5px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .regenerate-btn:hover { border-color: var(--primary-light); color: var(--primary); }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--primary-dark);
+      color: rgba(255,255,255,0.6);
+      text-align: center;
+      padding: 24px;
+      font-size: 13px;
+    }
+    footer span { color: var(--accent); }
+
+    /* ── LOADING SPINNER ── */
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── TOOLTIP ── */
+    .tooltip-wrap { position: relative; display: inline-flex; }
+    .tooltip-icon {
+      width: 16px; height: 16px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: help;
+    }
+
+    /* ── SVG ICONS ── */
+    .icon { display: inline-flex; align-items: center; }
+
+    /* ── FADE IN ── */
+    .fade-in { animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .site-header { padding: 0 16px; }
+      .progress-bar { padding: 0 16px; }
+      .hero { padding: 40px 16px 36px; }
+      .section-body, .section-footer { padding-left: 16px; padding-right: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <a class="logo" href="#">
+    <div class="logo-icon">ПА</div>
+    <div>
+      <div class="logo-text">Промавтоматика</div>
+      <div class="logo-sub">Карта посади • Create</div>
+    </div>
+  </a>
+  <div class="header-badge">Інструмент HR</div>
+</header>
+
+<!-- PROGRESS BAR -->
+<div class="progress-bar" id="progressBar">
+  <div class="progress-step" id="ps1" onclick="scrollToSection('section1')">
+    <div class="progress-dot">1</div><span>Назва посади</span>
+  </div>
+  <div class="progress-sep">›</div>
+  <div class="progress-step" id="ps2" onclick="scrollToSection('section2')">
+    <div class="progress-dot">2</div><span>Наратив</span>
+  </div>
+  <div class="progress-sep">›</div>
+  <div class="progress-step" id="ps3" onclick="scrollToSection('section3')">
+    <div class="progress-dot">3</div><span>Зони відповідальності</span>
+  </div>
+  <div class="progress-sep">›</div>
+  <div class="progress-step" id="ps4" onclick="scrollToSection('section4')">
+    <div class="progress-dot">4</div><span>Очікувані результати</span>
+  </div>
+  <div class="progress-sep">›</div>
+  <div class="progress-step" id="ps5" onclick="scrollToSection('section5')">
+    <div class="progress-dot">5</div><span>Критерії перевірки</span>
+  </div>
+  <div class="progress-sep">›</div>
+  <div class="progress-step" id="ps6" onclick="scrollToSection('section6')">
+    <div class="progress-dot">6</div><span>Структура</span>
+  </div>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-tag">Шаблон карти посади</div>
+  <h1>Створіть <span>Карту Посади</span><br>для вашої ролі</h1>
+  <p class="hero-desc">
+    Заповніть 6 розділів відповідно до методології Промавтоматики. Кожен розділ містить чіткі інструкції та приклади.
+    Після заповнення отримайте готовий Word-документ у форматі еталонної карти.
+  </p>
+  <div class="hero-steps">
+    <div class="hero-step"><div class="hero-step-num">1</div>Заповніть кожен розділ</div>
+    <div class="hero-step"><div class="hero-step-num">2</div>Підтвердіть кнопкою «Прийняти»</div>
+    <div class="hero-step"><div class="hero-step-num">3</div>Натисніть «Створити» і завантажте .docx</div>
+  </div>
+</section>
+
+<!-- MAIN CONTENT -->
+<main>
+<div class="container">
+
+  <!-- SECTION 1: НАЗВА ПОСАДИ -->
+  <div class="section-card fade-in" id="section1">
+    <div class="section-header">
+      <div class="section-header-left">
+        <div class="section-num">1</div>
+        <div>
+          <div class="section-title">Назва посади</div>
+          <div class="section-subtitle">Ідентифікатор ролі в організації</div>
+        </div>
+      </div>
+      <div class="section-check">✓</div>
+    </div>
+    <div class="section-body">
+      <div class="info-grid">
+        <div class="info-box purpose">
+          <div class="info-box-label">📋 Навіщо потрібен розділ</div>
+          Чітка назва ролі без креативу. Має бути зрозуміла будь-якому співробітнику компанії та партнерам.
+        </div>
+        <div class="info-box example">
+          <div class="info-box-label">💡 Приклади назв</div>
+          Операційний директор компанії<br>
+          Head PMO<br>
+          Менеджер проєктів<br>
+          Операційний менеджер
+        </div>
+      </div>
+      <div class="field-label">Назва посади <span class="req">*</span></div>
+      <div class="field-hint">Введіть офіційну назву посади (наприклад: «Операційний директор компанії»)</div>
+      <input type="text" id="positionName" placeholder="Наприклад: Операційний директор компанії" maxlength="200">
+      <div class="char-counter"><span id="positionNameCount">0</span>/200</div>
+    </div>
+    <div class="section-divider"></div>
+    <div class="section-footer">
+      <div>
+        <div class="error-msg" id="err1">⚠ Будь ласка, введіть назву посади</div>
+        <div class="accepted-tag">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Розділ прийнято
+        </div>
+      </div>
+      <button class="accept-btn" onclick="acceptSection(1)">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Прийняти
+      </button>
+    </div>
+  </div>
+
+  <!-- SECTION 2: НАРАТИВ -->
+  <div class="section-card fade-in" id="section2">
+    <div class="section-header">
+      <div class="section-header-left">
+        <div class="section-num">2</div>
+        <div>
+          <div class="section-title">Наратив</div>
+          <div class="section-subtitle">Контекст і призначення ролі</div>
+        </div>
+      </div>
+      <div class="section-check">✓</div>
+    </div>
+    <div class="section-body">
+      <div class="info-grid">
+        <div class="info-box purpose">
+          <div class="info-box-label">📋 Як писати наратив</div>
+          <strong>1. Контекст</strong> — що відбувається в бізнесі<br>
+          <strong>2. Виклики</strong> — проблеми, які є зараз<br>
+          <strong>3. Роль як рішення</strong> — навіщо потрібна ця роль
+        </div>
+        <div class="info-box example">
+          <div class="info-box-label">💡 Приклад структури</div>
+          «У 2026-2027 роках бізнес переходить у фазу активного зростання... На цьому етапі подальший розвиток неможливий без... У зв'язку з цим формується роль...»
+        </div>
+      </div>
+      <div class="field-label">Текст наративу <span class="req">*</span></div>
+      <div class="field-hint">Опишіть контекст бізнесу, виклики та призначення ролі. Мінімум 2–3 речення.</div>
+      <textarea id="narrative" rows="6" placeholder="Опишіть контекст бізнесу, поточні виклики та чому саме ця роль необхідна..."></textarea>
+      <div class="char-counter"><span id="narrativeCount">0</span> символів</div>
+    </div>
+    <div class="section-divider"></div>
+    <div class="section-footer">
+      <div>
+        <div class="error-msg" id="err2">⚠ Будь ласка, заповніть наратив (мінімум 50 символів)</div>
+        <div class="accepted-tag">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Розділ прийнято
+        </div>
+      </div>
+      <button class="accept-btn" onclick="acceptSection(2)">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Прийняти
+      </button>
+    </div>
+  </div>
+
+  <!-- SECTION 3: ЗОНИ ВІДПОВІДАЛЬНОСТІ -->
+  <div class="section-card fade-in" id="section3">
+    <div class="section-header">
+      <div class="section-header-left">
+        <div class="section-num">3</div>
+        <div>
+          <div class="section-title">Зони відповідальності</div>
+          <div class="section-subtitle">4–5 ключових зон управління (не задачі, а контури)</div>
+        </div>
+      </div>
+      <div class="section-check">✓</div>
+    </div>
+    <div class="section-body">
+      <div class="info-grid">
+        <div class="info-box purpose">
+          <div class="info-box-label">📋 Структура зони</div>
+          <strong>Назва зони</strong> — стисла і конкретна<br>
+          <strong>Відповідає за:</strong> — перелік зон контролю (з нового рядка)<br>
+          <strong>Сенс відповідальності</strong> — чому це важливо для бізнесу
+        </div>
+        <div class="info-box example">
+          <div class="info-box-label">💡 Приклад зони</div>
+          <strong>Назва:</strong> Допуск угод в операційне виконання<br>
+          <strong>Відпов.:</strong> встановлення правил допуску<br>перевірка здійсненності угод<br>
+          <strong>Сенс:</strong> На цьому етапі закладається валовий прибуток
+        </div>
+      </div>
+
+      <div id="zonesContainer"></div>
+
+      <button class="add-zone-btn" id="addZoneBtn" onclick="addZone()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Додати зону відповідальності (макс. 5)
+      </button>
+    </div>
+    <div class="section-divider"></div>
+    <div class="section-footer">
+      <div>
+        <div class="error-msg" id="err3">⚠ Будь ласка, заповніть усі поля у кожній зоні відповідальності</div>
+        <div class="accepted-tag">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Розділ прийнято
+        </div>
+      </div>
+      <button class="accept-btn" onclick="acceptSection(3)">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Прийняти
+      </button>
+    </div>
+  </div>
+
+  <!-- SECTION 4: ОЧІКУВАНІ РЕЗУЛЬТАТИ -->
+  <div class="section-card fade-in" id="section4">
+    <div class="section-header">
+      <div class="section-header-left">
+        <div class="section-num">4</div>
+        <div>
+          <div class="section-title">Очікувані результати</div>
+          <div class="section-subtitle">Що має змінитись у бізнесі завдяки ролі</div>
+        </div>
+      </div>
+      <div class="section-check">✓</div>
+    </div>
+    <div class="section-body">
+      <div class="info-grid">
+        <div class="info-box purpose">
+          <div class="info-box-label">📋 Правило написання</div>
+          Описуємо лише <strong>результат</strong>, не процес. Не «організовує зустрічі», а «зростання прибутку». Кожен пункт — з нового рядка.
+        </div>
+        <div class="info-box example">
+          <div class="info-box-label">💡 Приклади результатів</div>
+          Сформована стратегія операційної ефективності (з майлстоунами)<br>
+          Зростання валового та операційного прибутку<br>
+          Зменшення прострокованого НВ
+        </div>
+      </div>
+      <div class="field-label">Очікувані результати <span class="req">*</span></div>
+      <div class="field-hint">Кожен результат — з нового рядка. Мінімум 2 пункти.</div>
+      <textarea id="results" rows="5" placeholder="Сформована стратегія операційної ефективності компанії&#10;Зростання валового та операційного прибутку&#10;Зменшення прострокованого незавершеного виробництва"></textarea>
+      <div class="char-counter"><span id="resultsCount">0</span> символів</div>
+    </div>
+    <div class="section-divider"></div>
+    <div class="section-footer">
+      <div>
+        <div class="error-msg" id="err4">⚠ Вкажіть мінімум 2 очікуваних результати (кожен з нового рядка)</div>
+        <div class="accepted-tag">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Розділ прийнято
+        </div>
+      </div>
+      <button class="accept-btn" onclick="acceptSection(4)">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Прийняти
+      </button>
+    </div>
+  </div>
+
+  <!-- SECTION 5: КРИТЕРІЇ ПЕРЕВІРКИ -->
+  <div class="section-card fade-in" id="section5">
+    <div class="section-header">
+      <div class="section-header-left">
+        <div class="section-num">5</div>
+        <div>
+          <div class="section-title">Критерії перевірки</div>
+          <div class="section-subtitle">Вимірювані KPI для оцінки ефективності</div>
+        </div>
+      </div>
+      <div class="section-check">✓</div>
+    </div>
+    <div class="section-body">
+      <div class="info-grid">
+        <div class="info-box purpose">
+          <div class="info-box-label">📋 Вимоги до KPI</div>
+          Лише <strong>вимірювані</strong> показники. Вказуйте одиниці виміру та цільові значення, де можливо. Кожен KPI — з нового рядка.
+        </div>
+        <div class="info-box example">
+          <div class="info-box-label">💡 Приклади KPI</div>
+          Операційна прибутковість (% за період)<br>
+          Валовий прибуток (абсолютне значення за період)<br>
+          Частка простроченого НВ до НВ (% період до періоду)<br>
+          ±5% по строкам виконання проєктів
+        </div>
+      </div>
+      <div class="field-label">KPI та критерії <span class="req">*</span></div>
+      <div class="field-hint">Кожен критерій — з нового рядка. Мінімум 3 KPI.</div>
+      <textarea id="kpi" rows="5" placeholder="Операційна прибутковість (% значення за період)&#10;Валовий прибуток (абсолютне значення за період)&#10;Частка прострокованого НВ до НВ (% значення)&#10;% поточного НВ до планової виручки (не більше ніж...)"></textarea>
+      <div class="char-counter"><span id="kpiCount">0</span> символів</div>
+    </div>
+    <div class="section-divider"></div>
+    <div class="section-footer">
+      <div>
+        <div class="error-msg" id="err5">⚠ Вкажіть мінімум 3 критерії перевірки (кожен з нового рядка)</div>
+        <div class="accepted-tag">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Розділ прийнято
+        </div>
+      </div>
+      <button class="accept-btn" onclick="acceptSection(5)">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Прийняти
+      </button>
+    </div>
+  </div>
+
+  <!-- SECTION 6: МІСЦЕ В СТРУКТУРІ -->
+  <div class="section-card fade-in" id="section6">
+    <div class="section-header">
+      <div class="section-header-left">
+        <div class="section-num">6</div>
+        <div>
+          <div class="section-title">Місце в організаційній структурі</div>
+          <div class="section-subtitle">Підпорядкування та прямі підлеглі</div>
+        </div>
+      </div>
+      <div class="section-check">✓</div>
+    </div>
+    <div class="section-body">
+      <div class="info-grid">
+        <div class="info-box purpose">
+          <div class="info-box-label">📋 Що вказувати</div>
+          <strong>Адміністративне</strong> — кому підпорядковується за ієрархією<br>
+          <strong>Функціональне</strong> — кому підпорядковується за напрямком<br>
+          <strong>Прямі підлеглі</strong> — список ролей у підпорядкуванні
+        </div>
+        <div class="info-box example">
+          <div class="info-box-label">💡 Приклад</div>
+          <strong>Адм.:</strong> Керівнику Компанії<br>
+          <strong>Функц.:</strong> COO Керуючої Компанії<br>
+          <strong>Підлеглі:</strong><br>
+          Операційний Менеджер(и)<br>
+          Процесний Менеджер<br>
+          Проєктні менеджери
+        </div>
+      </div>
+      <div class="org-grid">
+        <div>
+          <div class="field-label">Адміністративне підпорядкування <span class="req">*</span></div>
+          <div class="field-hint">Кому підпорядковується адміністративно (наприклад: «Керівнику Компанії»)</div>
+          <input type="text" id="adminSub" placeholder="Наприклад: Керівнику Компанії">
+        </div>
+        <div>
+          <div class="field-label">Функціональне підпорядкування <span class="req">*</span></div>
+          <div class="field-hint">Кому підпорядковується функціонально (наприклад: «COO КК»)</div>
+          <input type="text" id="funcSub" placeholder="Наприклад: COO Керуючої Компанії">
+        </div>
+        <div>
+          <div class="field-label">Прямі підлеглі <span class="req">*</span></div>
+          <div class="field-hint">Кожна роль — з нового рядка. Мінімум 1 підлеглий.</div>
+          <textarea id="directReports" rows="4" placeholder="Операційний Менеджер(и)&#10;Процесний Менеджер (якщо є необхідність)&#10;Проєктні менеджери"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="section-divider"></div>
+    <div class="section-footer">
+      <div>
+        <div class="error-msg" id="err6">⚠ Будь ласка, заповніть усі поля організаційної структури</div>
+        <div class="accepted-tag">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Розділ прийнято
+        </div>
+      </div>
+      <button class="accept-btn" onclick="acceptSection(6)">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Прийняти
+      </button>
+    </div>
+  </div>
+
+  <!-- CREATE AREA -->
+  <div class="create-area fade-in" id="createArea">
+    <h2>Готово до створення документу</h2>
+    <p>Перевірте, що всі розділи прийнято, і натисніть «Створити»</p>
+    <div class="progress-checklist" id="progressChecklist"></div>
+    <button class="create-btn" id="createBtn" onclick="createDocument()" disabled>
+      Створити карту посади
+    </button>
+  </div>
+
+  <!-- RESULT AREA -->
+  <div class="result-area" id="resultArea">
+    <div class="result-icon">📄</div>
+    <div class="result-title">Карта посади готова!</div>
+    <div class="result-desc" id="resultDesc">Документ сформовано у форматі еталонної карти посади Промавтоматики</div>
+    <button class="download-btn" id="downloadBtn" onclick="downloadDocument()">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Завантажити .docx
+    </button>
+    <br>
+    <button class="regenerate-btn" onclick="regenerateDocument()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+      Відновити документ
+    </button>
+  </div>
+
+</div><!-- /container -->
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <span>Промавтоматика</span> — Інструмент створення карт посад &nbsp;·&nbsp; Формат документу відповідає еталонній карті посади
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+const state = {
+  accepted: new Set(),
+  positionName: '',
+  narrative: '',
+  zones: [],
+  results: [],
+  kpi: [],
+  adminSub: '',
+  funcSub: '',
+  directReports: [],
+  docBlob: null
+};
+
+const SECTION_LABELS = {
+  1: 'Назва посади',
+  2: 'Наратив',
+  3: 'Зони відповідальності',
+  4: 'Очікувані результати',
+  5: 'Критерії перевірки',
+  6: 'Організаційна структура'
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════════
+
+/** Parse non-empty lines from textarea value */
+function parseLines(text) {
+  if (!text || typeof text !== 'string') return [];
+  return text.split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+}
+
+/** Sanitize text (prevent XSS if ever shown as HTML) */
+function sanitize(text) {
+  if (!text) return '';
+  return String(text).replace(/[<>&"']/g, c => ({
+    '<':'&lt;', '>':'&gt;', '&':'&amp;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+}
+
+function scrollToSection(id) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CHAR COUNTERS
+// ═══════════════════════════════════════════════════════════════════
+function setupCounters() {
+  const pairs = [
+    ['positionName', 'positionNameCount'],
+    ['narrative', 'narrativeCount'],
+    ['results', 'resultsCount'],
+    ['kpi', 'kpiCount']
+  ];
+  pairs.forEach(([fieldId, countId]) => {
+    const el = document.getElementById(fieldId);
+    const counter = document.getElementById(countId);
+    if (el && counter) {
+      el.addEventListener('input', () => {
+        counter.textContent = el.value.length;
+      });
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ZONES MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+let zoneCount = 0;
+
+function addZone() {
+  const container = document.getElementById('zonesContainer');
+  const currentZones = container.querySelectorAll('.zone-item').length;
+  if (currentZones >= 5) {
+    document.getElementById('addZoneBtn').textContent = '✗ Максимум 5 зон відповідальності';
+    return;
+  }
+  zoneCount++;
+  const idx = zoneCount;
+  const zone = document.createElement('div');
+  zone.className = 'zone-item fade-in';
+  zone.dataset.zoneIdx = idx;
+  zone.innerHTML = `
+    <div class="zone-header">
+      <span class="zone-num-badge">Зона ${currentZones + 1}</span>
+      <button class="zone-remove-btn" onclick="removeZone(this)" ${currentZones === 0 ? 'style="display:none"' : ''}>✕ Видалити зону</button>
+    </div>
+    <div class="zone-field">
+      <div class="field-label">Назва зони <span class="req">*</span></div>
+      <div class="field-hint">Стисла назва зони відповідальності (наприклад: «Допуск угод в операційне виконання»)</div>
+      <input type="text" class="zone-name" placeholder="Назва зони відповідальності" maxlength="200">
+    </div>
+    <div class="zone-field">
+      <div class="field-label">Відповідає за <span class="req">*</span></div>
+      <div class="field-hint">Кожен пункт відповідальності — з нового рядка (мінімум 2 пункти)</div>
+      <textarea class="zone-resp" rows="4" placeholder="встановлення правил, за якими угоди допускаються до виконання&#10;перевірку здійсненності угод (строки, ресурси, складність)&#10;блокування угод, які створюють ризик втрати прибутку"></textarea>
+    </div>
+    <div class="zone-field">
+      <div class="field-label">Сенс відповідальності <span class="req">*</span></div>
+      <div class="field-hint">Чому ця зона критично важлива для бізнесу? Одне–два речення.</div>
+      <textarea class="zone-sense" rows="2" placeholder="На цьому етапі закладається або зберігається валовий прибуток бізнесу."></textarea>
+    </div>
+  `;
+  container.appendChild(zone);
+  updateZoneNumbers();
+  updateAddZoneBtn();
+  // hide accepted state for section 3
+  if (state.accepted.has(3)) {
+    state.accepted.delete(3);
+    updateSectionUI(3, false);
+  }
+}
+
+function removeZone(btn) {
+  const zone = btn.closest('.zone-item');
+  zone.remove();
+  updateZoneNumbers();
+  updateAddZoneBtn();
+  if (state.accepted.has(3)) {
+    state.accepted.delete(3);
+    updateSectionUI(3, false);
+  }
+}
+
+function updateZoneNumbers() {
+  const zones = document.querySelectorAll('#zonesContainer .zone-item');
+  zones.forEach((z, i) => {
+    const badge = z.querySelector('.zone-num-badge');
+    if (badge) badge.textContent = `Зона ${i + 1}`;
+    const removeBtn = z.querySelector('.zone-remove-btn');
+    if (removeBtn) removeBtn.style.display = i === 0 ? 'none' : '';
+  });
+}
+
+function updateAddZoneBtn() {
+  const btn = document.getElementById('addZoneBtn');
+  const count = document.querySelectorAll('#zonesContainer .zone-item').length;
+  if (count >= 5) {
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+    btn.innerHTML = `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Максимум 5 зон додано`;
+  } else {
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+    btn.innerHTML = `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Додати зону відповідальності (${5 - count} залишилось)`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// VALIDATION
+// ═══════════════════════════════════════════════════════════════════
+const validators = {
+  1: () => {
+    const val = document.getElementById('positionName').value.trim();
+    if (!val) return 'empty';
+    return null;
+  },
+  2: () => {
+    const val = document.getElementById('narrative').value.trim();
+    if (val.length < 50) return 'too_short';
+    return null;
+  },
+  3: () => {
+    const zones = document.querySelectorAll('#zonesContainer .zone-item');
+    if (zones.length === 0) return 'no_zones';
+    for (const zone of zones) {
+      const name = zone.querySelector('.zone-name')?.value.trim();
+      const resp = zone.querySelector('.zone-resp')?.value.trim();
+      const sense = zone.querySelector('.zone-sense')?.value.trim();
+      const respLines = parseLines(resp || '');
+      if (!name || !resp || !sense || respLines.length < 2) return 'incomplete_zone';
+    }
+    return null;
+  },
+  4: () => {
+    const lines = parseLines(document.getElementById('results').value);
+    if (lines.length < 2) return 'too_few';
+    return null;
+  },
+  5: () => {
+    const lines = parseLines(document.getElementById('kpi').value);
+    if (lines.length < 3) return 'too_few';
+    return null;
+  },
+  6: () => {
+    const admin = document.getElementById('adminSub').value.trim();
+    const func = document.getElementById('funcSub').value.trim();
+    const reports = document.getElementById('directReports').value.trim();
+    if (!admin || !func || !reports) return 'incomplete';
+    if (parseLines(reports).length < 1) return 'incomplete';
+    return null;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// ACCEPT SECTION
+// ═══════════════════════════════════════════════════════════════════
+function acceptSection(n) {
+  const errEl = document.getElementById(`err${n}`);
+  const err = validators[n]();
+  if (err) {
+    errEl.classList.add('visible');
+    // Shake animation
+    const card = document.getElementById(`section${n}`);
+    card.style.transform = 'translateX(-4px)';
+    setTimeout(() => { card.style.transform = 'translateX(4px)'; }, 80);
+    setTimeout(() => { card.style.transform = ''; }, 160);
+    return;
+  }
+  errEl.classList.remove('visible');
+
+  // Save data
+  switch (n) {
+    case 1: state.positionName = document.getElementById('positionName').value.trim(); break;
+    case 2: state.narrative = document.getElementById('narrative').value.trim(); break;
+    case 3:
+      state.zones = [];
+      document.querySelectorAll('#zonesContainer .zone-item').forEach((zone, i) => {
+        state.zones.push({
+          name: zone.querySelector('.zone-name').value.trim(),
+          responsibilities: parseLines(zone.querySelector('.zone-resp').value),
+          sense: zone.querySelector('.zone-sense').value.trim()
+        });
+      });
+      break;
+    case 4: state.results = parseLines(document.getElementById('results').value); break;
+    case 5: state.kpi = parseLines(document.getElementById('kpi').value); break;
+    case 6:
+      state.adminSub = document.getElementById('adminSub').value.trim();
+      state.funcSub = document.getElementById('funcSub').value.trim();
+      state.directReports = parseLines(document.getElementById('directReports').value);
+      break;
+  }
+
+  state.accepted.add(n);
+  updateSectionUI(n, true);
+  updateProgressBar();
+  updateCreateButton();
+
+  // Auto-scroll to next section
+  const nextSection = document.getElementById(`section${n + 1}`);
+  if (nextSection) {
+    setTimeout(() => nextSection.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+  } else {
+    setTimeout(() => document.getElementById('createArea').scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+  }
+}
+
+function updateSectionUI(n, accepted) {
+  const card = document.getElementById(`section${n}`);
+  if (accepted) {
+    card.classList.add('accepted');
+  } else {
+    card.classList.remove('accepted');
+  }
+}
+
+function updateProgressBar() {
+  for (let i = 1; i <= 6; i++) {
+    const el = document.getElementById(`ps${i}`);
+    if (state.accepted.has(i)) {
+      el.className = 'progress-step done';
+      el.querySelector('.progress-dot').textContent = '✓';
+    } else {
+      el.className = 'progress-step';
+      el.querySelector('.progress-dot').textContent = String(i);
+    }
+  }
+}
+
+function updateCreateButton() {
+  const btn = document.getElementById('createBtn');
+  const allDone = [1,2,3,4,5,6].every(n => state.accepted.has(n));
+  btn.disabled = !allDone;
+
+  // Update checklist
+  const list = document.getElementById('progressChecklist');
+  list.innerHTML = [1,2,3,4,5,6].map(n => `
+    <div class="check-item ${state.accepted.has(n) ? 'done' : 'pending'}">
+      <div class="check-dot"></div>
+      ${SECTION_LABELS[n]}
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DOCX GENERATION
+// ═══════════════════════════════════════════════════════════════════
+async function buildDocument(data) {
+  const {
+    Document, Packer, Paragraph, TextRun,
+    AlignmentType, LevelFormat, UnderlineType
+  } = window.docx;
+
+  // Shared run properties helper
+  function run(text, opts = {}) {
+    return new TextRun({
+      text: String(text),
+      font: 'Consolas',
+      size: opts.size || 24,
+      bold: opts.bold || false,
+      underline: opts.underline ? { type: 'single' } : undefined,
+      highlight: opts.highlight || undefined,
+      break: opts.break || undefined,
+      color: '000000'
+    });
+  }
+
+  // Shared paragraph spacing
+  const spacing = { before: 0, after: 120, line: 276, lineRule: 'auto' };
+
+  function para(children, align = 'left', extraOpts = {}) {
+    return new Paragraph({
+      children,
+      alignment: align === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT,
+      spacing,
+      ...extraOpts
+    });
+  }
+
+  function bulletPara(text) {
+    return new Paragraph({
+      children: [run(text)],
+      numbering: { reference: 'bullets', level: 0 },
+      spacing,
+      alignment: AlignmentType.LEFT
+    });
+  }
+
+  function emptyPara() {
+    return new Paragraph({ children: [run('')], spacing });
+  }
+
+  const paragraphs = [];
+
+  // ── TITLE: Карта посади ──────────────────────────────────────
+  paragraphs.push(para(
+    [run('Карта посади', { bold: true, size: 36 })],
+    'center'
+  ));
+
+  // ── POSITION NAME (yellow highlight) ─────────────────────────
+  paragraphs.push(para(
+    [run(data.positionName, { bold: true, size: 36, highlight: 'yellow' })],
+    'center'
+  ));
+
+  paragraphs.push(emptyPara());
+
+  // ── НАРАТИВ ──────────────────────────────────────────────────
+  paragraphs.push(para([run('Наратив', { bold: true, highlight: 'yellow' })]));
+
+  // Split narrative by blank lines into separate paragraphs
+  const narrativeParas = data.narrative.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  if (narrativeParas.length === 0) narrativeParas.push(data.narrative);
+  narrativeParas.forEach(p => {
+    // Within a paragraph, handle single newlines as separate paragraphs too
+    p.split('\n').map(l => l.trim()).filter(Boolean).forEach(line => {
+      paragraphs.push(para([run(line)]));
+    });
+  });
+
+  paragraphs.push(emptyPara());
+
+  // ── ЗОНИ ВІДПОВІДАЛЬНОСТІ ─────────────────────────────────────
+  paragraphs.push(para([run('Зони відповідальності', { bold: true, highlight: 'yellow' })]));
+  paragraphs.push(emptyPara());
+
+  data.zones.forEach((zone, i) => {
+    // Zone name: bold, underlined, yellow
+    paragraphs.push(para([
+      run(`${i + 1}. ${zone.name}`, { bold: true, underline: true, highlight: 'yellow' })
+    ]));
+
+    // Відповідає за: (lightGray, not bold)
+    paragraphs.push(para([run('Відповідає за:', { highlight: 'lightGray' })]));
+
+    // Responsibilities as bullets
+    zone.responsibilities.forEach(r => {
+      paragraphs.push(bulletPara(r));
+    });
+
+    // Сенс відповідальності: label + line break + text (in same paragraph)
+    paragraphs.push(para([
+      run('Сенс відповідальності:', { highlight: 'lightGray' }),
+      new TextRun({ break: 1 }),
+      run(zone.sense, { font: 'Consolas', size: 24 })
+    ]));
+
+    if (i < data.zones.length - 1) paragraphs.push(emptyPara());
+  });
+
+  paragraphs.push(emptyPara());
+
+  // ── ОЧІКУВАНІ РЕЗУЛЬТАТИ ──────────────────────────────────────
+  paragraphs.push(para([run('Очікувані результати', { bold: true, highlight: 'yellow' })]));
+  data.results.forEach(r => paragraphs.push(bulletPara(r)));
+  paragraphs.push(emptyPara());
+
+  // ── КРИТЕРІЇ ПЕРЕВІРКИ ────────────────────────────────────────
+  paragraphs.push(para([run('Критерії перевірки', { bold: true, highlight: 'yellow' })]));
+  data.kpi.forEach(k => paragraphs.push(bulletPara(k)));
+  paragraphs.push(emptyPara());
+
+  // ── МІСЦЕ В ОРГАНІЗАЦІЙНІЙ СТРУКТУРІ ─────────────────────────
+  paragraphs.push(para([run('Місце в організаційній структурі', { bold: true, highlight: 'yellow' })]));
+
+  // Адміністративне підпорядкування: (bold, lightGray) + linebreak + value
+  paragraphs.push(para([
+    run('Адміністративне підпорядкування:', { bold: true, highlight: 'lightGray' }),
+    new TextRun({ break: 1 }),
+    run(data.adminSub)
+  ]));
+
+  // Функціональне підпорядкування:
+  paragraphs.push(para([
+    run('Функціональне підпорядкування:', { bold: true, highlight: 'lightGray' }),
+    new TextRun({ break: 1 }),
+    run(data.funcSub)
+  ]));
+
+  // Прямі підлеглі:
+  paragraphs.push(para([
+    run('Прямі підлеглі:', { bold: true, highlight: 'lightGray' })
+  ]));
+  data.directReports.forEach(r => paragraphs.push(bulletPara(r)));
+
+  // ── BUILD DOCUMENT ────────────────────────────────────────────
+  const doc = new Document({
+    numbering: {
+      config: [{
+        reference: 'bullets',
+        levels: [{
+          level: 0,
+          format: LevelFormat.BULLET,
+          text: '\u2022',
+          alignment: AlignmentType.LEFT,
+          style: {
+            paragraph: { indent: { left: 720, hanging: 360 } },
+            run: { font: 'Consolas', size: 24 }
+          }
+        }]
+      }]
+    },
+    sections: [{
+      properties: {
+        page: {
+          size: { width: 11906, height: 16838 },
+          margin: { top: 1134, right: 1134, bottom: 1134, left: 1134 }
+        }
+      },
+      children: paragraphs
+    }]
+  });
+
+  return Packer.toBlob(doc);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CREATE & DOWNLOAD
+// ═══════════════════════════════════════════════════════════════════
+async function createDocument() {
+  const btn = document.getElementById('createBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Формую документ...';
+
+  try {
+    const blob = await buildDocument({
+      positionName: state.positionName,
+      narrative: state.narrative,
+      zones: state.zones,
+      results: state.results,
+      kpi: state.kpi,
+      adminSub: state.adminSub,
+      funcSub: state.funcSub,
+      directReports: state.directReports
+    });
+
+    state.docBlob = blob;
+
+    btn.innerHTML = '✓ Документ створено';
+    btn.style.background = 'var(--success)';
+
+    document.getElementById('resultDesc').textContent =
+      `Карта посади «${state.positionName}» сформована у форматі еталонної карти Промавтоматики`;
+
+    const resultArea = document.getElementById('resultArea');
+    resultArea.classList.add('visible');
+    setTimeout(() => resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+
+  } catch (err) {
+    console.error('Document generation error:', err);
+    btn.disabled = false;
+    btn.innerHTML = '⚠ Помилка — спробуйте ще раз';
+    btn.style.background = 'var(--error)';
+    setTimeout(() => {
+      btn.innerHTML = 'Створити карту посади';
+      btn.style.background = '';
+      btn.disabled = false;
+    }, 3000);
+  }
+}
+
+function downloadDocument() {
+  if (!state.docBlob) return;
+  const safeName = state.positionName.replace(/[^\wА-Яа-яІіЄєЇїҐґ\s-]/g, '').trim() || 'Карта посади';
+  saveAs(state.docBlob, `Карта посади — ${safeName}.docx`);
+}
+
+function regenerateDocument() {
+  state.docBlob = null;
+  document.getElementById('resultArea').classList.remove('visible');
+  const btn = document.getElementById('createBtn');
+  btn.disabled = false;
+  btn.innerHTML = 'Створити карту посади';
+  btn.style.background = '';
+  createDocument();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+function init() {
+  setupCounters();
+  // Add 2 zones by default
+  addZone();
+  addZone();
+  updateCreateButton();
+}
+
+// Wait for docx library to load
+window.addEventListener('load', () => {
+  if (typeof window.docx === 'undefined') {
+    console.error('docx library not loaded');
+  }
+  init();
+});
+</script>
+</body>
+</html>
