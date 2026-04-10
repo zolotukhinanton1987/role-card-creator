@@ -322,15 +322,24 @@
       margin-bottom: 16px;
       background: #fafbff;
       position: relative;
-      transition: border-color 0.2s;
+      transition: border-color 0.3s, box-shadow 0.3s;
     }
     .zone-item:hover { border-color: var(--primary-light); }
+    .zone-item.accepted {
+      border-color: var(--success);
+      background: #f8fffe;
+      box-shadow: 0 0 0 2px rgba(34,197,94,0.1);
+    }
+    .zone-item.accepted .zone-fields { opacity: 0.75; pointer-events: none; }
     .zone-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 14px;
+      gap: 8px;
+      flex-wrap: wrap;
     }
+    .zone-header-left { display: flex; align-items: center; gap: 8px; }
     .zone-num-badge {
       background: var(--primary);
       color: #fff;
@@ -339,6 +348,16 @@
       font-size: 12px;
       font-weight: 700;
     }
+    .zone-item.accepted .zone-num-badge { background: var(--success); }
+    .zone-accepted-tag {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      color: var(--success);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .zone-item.accepted .zone-accepted-tag { display: flex; }
     .zone-remove-btn {
       background: none;
       border: 1.5px solid var(--error);
@@ -352,6 +371,44 @@
     }
     .zone-remove-btn:hover { background: var(--error-light); }
     .zone-field { margin-bottom: 14px; }
+    .zone-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .zone-accept-btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .zone-accept-btn:hover { background: var(--primary-light); box-shadow: 0 3px 10px rgba(26,53,97,0.25); }
+    .zone-item.accepted .zone-accept-btn { background: #e8f5e9; color: #1b5e20; }
+    .zone-error-msg { color: var(--error); font-size: 12px; font-weight: 500; display: none; }
+    .zone-error-msg.visible { display: block; }
+    .zone-hint-count {
+      background: rgba(245,166,35,0.1);
+      border: 1px solid rgba(245,166,35,0.3);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: var(--accent-dark);
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
     .add-zone-btn {
       display: flex;
       align-items: center;
@@ -374,6 +431,49 @@
       color: var(--primary);
       background: #f0f5ff;
     }
+
+    /* ── ORG TYPE SELECTOR ── */
+    .org-type-selector {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .org-type-option {
+      flex: 1;
+      min-width: 180px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #fafbff;
+    }
+    .org-type-option:hover { border-color: var(--primary-light); background: #f0f5ff; }
+    .org-type-option.selected { border-color: var(--primary); background: #f0f5ff; box-shadow: 0 0 0 2px rgba(26,53,97,0.1); }
+    .org-type-radio {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 2px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .org-type-option.selected .org-type-radio { border-color: var(--primary); background: var(--primary); }
+    .org-type-option.selected .org-type-radio::after {
+      content: '';
+      width: 6px; height: 6px;
+      background: #fff;
+      border-radius: 50%;
+    }
+    .org-type-label { font-weight: 600; font-size: 14px; }
+    .org-type-desc { font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+    .org-fields { display: grid; gap: 16px; }
+    .org-fields-hidden { display: none; }
 
     /* ── ORG FIELDS ── */
     .org-grid { display: grid; gap: 16px; }
@@ -761,7 +861,7 @@
         <div class="section-num">3</div>
         <div>
           <div class="section-title">Зони відповідальності</div>
-          <div class="section-subtitle">4–5 ключових зон управління (не задачі, а контури)</div>
+          <div class="section-subtitle">Контури управління — не задачі, а зони контролю</div>
         </div>
       </div>
       <div class="section-check">✓</div>
@@ -782,17 +882,21 @@
         </div>
       </div>
 
+      <div class="zone-hint-count">
+        ⚖️ <strong>Скільки зон?</strong> Оптимально 4–5. Менше — відповідальність нечітка, більше — зона розмивається і втрачає сенс. Максимум 8. Заповніть кожну зону і натисніть «Прийняти зону» — потім підтвердіть весь розділ.
+      </div>
+
       <div id="zonesContainer"></div>
 
       <button class="add-zone-btn" id="addZoneBtn" onclick="addZone()">
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-        Додати зону відповідальності (макс. 5)
+        Додати зону відповідальності
       </button>
     </div>
     <div class="section-divider"></div>
     <div class="section-footer">
       <div>
-        <div class="error-msg" id="err3">⚠ Будь ласка, заповніть усі поля у кожній зоні відповідальності</div>
+        <div class="error-msg" id="err3">⚠ Прийміть хоча б одну зону відповідальності (кнопка «Прийняти зону» в кожній зоні)</div>
         <div class="accepted-tag">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
           Розділ прийнято
@@ -800,7 +904,7 @@
       </div>
       <button class="accept-btn" onclick="acceptSection(3)">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-        Прийняти
+        Прийняти розділ
       </button>
     </div>
   </div>
@@ -905,51 +1009,83 @@
         <div class="section-num">6</div>
         <div>
           <div class="section-title">Місце в організаційній структурі</div>
-          <div class="section-subtitle">Підпорядкування та прямі підлеглі</div>
+          <div class="section-subtitle">Тип підпорядкування та підзвітність</div>
         </div>
       </div>
       <div class="section-check">✓</div>
     </div>
     <div class="section-body">
-      <div class="info-grid">
-        <div class="info-box purpose">
-          <div class="info-box-label">📋 Що вказувати</div>
-          <strong>Адміністративне</strong> — кому підпорядковується за ієрархією<br>
-          <strong>Функціональне</strong> — кому підпорядковується за напрямком<br>
-          <strong>Прямі підлеглі</strong> — список ролей у підпорядкуванні
+      <div class="field-label">Тип структури підпорядкування <span class="req">*</span></div>
+      <div class="field-hint" style="margin-bottom:12px;">Оберіть тип, щоб відобразити відповідні поля</div>
+
+      <div class="org-type-selector">
+        <div class="org-type-option" id="opt-matrix" onclick="selectOrgType('matrix')">
+          <div class="org-type-radio"></div>
+          <div>
+            <div class="org-type-label">Матрична структура</div>
+            <div class="org-type-desc">Є окреме адміністративне і функціональне підпорядкування (різні керівники)</div>
+          </div>
         </div>
-        <div class="info-box example">
-          <div class="info-box-label">💡 Приклад</div>
-          <strong>Адм.:</strong> Керівнику Компанії<br>
-          <strong>Функц.:</strong> COO Керуючої Компанії<br>
-          <strong>Підлеглі:</strong><br>
-          Операційний Менеджер(и)<br>
-          Процесний Менеджер<br>
-          Проєктні менеджери
-        </div>
-      </div>
-      <div class="org-grid">
-        <div>
-          <div class="field-label">Адміністративне підпорядкування <span class="req">*</span></div>
-          <div class="field-hint">Кому підпорядковується адміністративно (наприклад: «Керівнику Компанії»)</div>
-          <input type="text" id="adminSub" placeholder="Наприклад: Керівнику Компанії">
-        </div>
-        <div>
-          <div class="field-label">Функціональне підпорядкування <span class="req">*</span></div>
-          <div class="field-hint">Кому підпорядковується функціонально (наприклад: «COO КК»)</div>
-          <input type="text" id="funcSub" placeholder="Наприклад: COO Керуючої Компанії">
-        </div>
-        <div>
-          <div class="field-label">Прямі підлеглі <span class="req">*</span></div>
-          <div class="field-hint">Кожна роль — з нового рядка. Мінімум 1 підлеглий.</div>
-          <textarea id="directReports" rows="4" placeholder="Операційний Менеджер(и)&#10;Процесний Менеджер (якщо є необхідність)&#10;Проєктні менеджери"></textarea>
+        <div class="org-type-option" id="opt-direct" onclick="selectOrgType('direct')">
+          <div class="org-type-radio"></div>
+          <div>
+            <div class="org-type-label">Пряме підпорядкування</div>
+            <div class="org-type-desc">Один керівник — один лінійний зв'язок підпорядкування</div>
+          </div>
         </div>
       </div>
+
+      <!-- МАТРИЧНА -->
+      <div id="matrixFields" class="org-fields org-fields-hidden">
+        <div class="info-grid">
+          <div class="info-box purpose">
+            <div class="info-box-label">📋 Матрична структура</div>
+            Роль одночасно підпорядковується двом керівникам: адміністративно (за ієрархією компанії) та функціонально (за напрямком діяльності).
+          </div>
+          <div class="info-box example">
+            <div class="info-box-label">💡 Приклад</div>
+            <strong>Адм.:</strong> Керівнику Компанії<br>
+            <strong>Функц.:</strong> COO Керуючої Компанії
+          </div>
+        </div>
+        <div class="org-grid">
+          <div>
+            <div class="field-label">Адміністративне підпорядкування <span class="req">*</span></div>
+            <div class="field-hint">Кому підпорядковується за ієрархією компанії</div>
+            <input type="text" id="adminSub" placeholder="Наприклад: Керівнику Компанії">
+          </div>
+          <div>
+            <div class="field-label">Функціональне підпорядкування <span class="req">*</span></div>
+            <div class="field-hint">Кому підпорядковується за функціональним напрямком</div>
+            <input type="text" id="funcSub" placeholder="Наприклад: COO Керуючої Компанії">
+          </div>
+        </div>
+      </div>
+
+      <!-- ПРЯМЕ -->
+      <div id="directFields" class="org-fields org-fields-hidden">
+        <div class="info-grid">
+          <div class="info-box purpose">
+            <div class="info-box-label">📋 Пряме підпорядкування</div>
+            Роль має одного прямого керівника. Чіткий лінійний зв'язок в ієрархії.
+          </div>
+          <div class="info-box example">
+            <div class="info-box-label">💡 Приклад</div>
+            <strong>Підпорядковується:</strong> Директору з розвитку<br>або: Операційному директору компанії
+          </div>
+        </div>
+        <div>
+          <div class="field-label">Кому підпорядковується <span class="req">*</span></div>
+          <div class="field-hint">Вкажіть посаду прямого керівника</div>
+          <input type="text" id="directSub" placeholder="Наприклад: Директору компанії">
+        </div>
+      </div>
+
     </div>
     <div class="section-divider"></div>
     <div class="section-footer">
       <div>
-        <div class="error-msg" id="err6">⚠ Будь ласка, заповніть усі поля організаційної структури</div>
+        <div class="error-msg" id="err6">⚠ Оберіть тип структури та заповніть поля підпорядкування</div>
         <div class="accepted-tag">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
           Розділ прийнято
@@ -1004,12 +1140,13 @@ const state = {
   accepted: new Set(),
   positionName: '',
   narrative: '',
-  zones: [],
+  zones: [],          // only accepted zones stored here
   results: [],
   kpi: [],
+  orgType: '',        // 'matrix' | 'direct'
   adminSub: '',
   funcSub: '',
-  directReports: [],
+  directSub: '',
   docBlob: null
 };
 
@@ -1070,48 +1207,95 @@ function setupCounters() {
 // ═══════════════════════════════════════════════════════════════════
 // ZONES MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════
+const MAX_ZONES = 8;
 let zoneCount = 0;
 
 function addZone() {
   const container = document.getElementById('zonesContainer');
   const currentZones = container.querySelectorAll('.zone-item').length;
-  if (currentZones >= 5) {
-    document.getElementById('addZoneBtn').textContent = '✗ Максимум 5 зон відповідальності';
-    return;
-  }
+  if (currentZones >= MAX_ZONES) return;
+
   zoneCount++;
-  const idx = zoneCount;
   const zone = document.createElement('div');
   zone.className = 'zone-item fade-in';
-  zone.dataset.zoneIdx = idx;
+  zone.dataset.zoneIdx = zoneCount;
   zone.innerHTML = `
     <div class="zone-header">
-      <span class="zone-num-badge">Зона ${currentZones + 1}</span>
-      <button class="zone-remove-btn" onclick="removeZone(this)" ${currentZones === 0 ? 'style="display:none"' : ''}>✕ Видалити зону</button>
+      <div class="zone-header-left">
+        <span class="zone-num-badge">Зона ${currentZones + 1}</span>
+        <span class="zone-accepted-tag">✓ Прийнято</span>
+      </div>
+      <button class="zone-remove-btn" onclick="removeZone(this)">✕ Видалити</button>
     </div>
-    <div class="zone-field">
-      <div class="field-label">Назва зони <span class="req">*</span></div>
-      <div class="field-hint">Стисла назва зони відповідальності (наприклад: «Допуск угод в операційне виконання»)</div>
-      <input type="text" class="zone-name" placeholder="Назва зони відповідальності" maxlength="200">
+    <div class="zone-fields">
+      <div class="zone-field">
+        <div class="field-label">Назва зони <span class="req">*</span></div>
+        <div class="field-hint">Стисла назва зони відповідальності</div>
+        <input type="text" class="zone-name" placeholder="Наприклад: Допуск угод в операційне виконання" maxlength="200">
+      </div>
+      <div class="zone-field">
+        <div class="field-label">Відповідає за <span class="req">*</span></div>
+        <div class="field-hint">Кожен пункт — з нового рядка (мінімум 1)</div>
+        <textarea class="zone-resp" rows="4" placeholder="встановлення правил допуску угод до виконання&#10;перевірку здійсненності угод (строки, ресурси, складність)&#10;блокування угод з ризиком втрати прибутку"></textarea>
+      </div>
+      <div class="zone-field">
+        <div class="field-label">Сенс відповідальності <span class="req">*</span></div>
+        <div class="field-hint">Чому ця зона критично важлива для бізнесу?</div>
+        <textarea class="zone-sense" rows="2" placeholder="На цьому етапі закладається або зберігається валовий прибуток бізнесу."></textarea>
+      </div>
     </div>
-    <div class="zone-field">
-      <div class="field-label">Відповідає за <span class="req">*</span></div>
-      <div class="field-hint">Кожен пункт відповідальності — з нового рядка (мінімум 2 пункти)</div>
-      <textarea class="zone-resp" rows="4" placeholder="встановлення правил, за якими угоди допускаються до виконання&#10;перевірку здійсненності угод (строки, ресурси, складність)&#10;блокування угод, які створюють ризик втрати прибутку"></textarea>
-    </div>
-    <div class="zone-field">
-      <div class="field-label">Сенс відповідальності <span class="req">*</span></div>
-      <div class="field-hint">Чому ця зона критично важлива для бізнесу? Одне–два речення.</div>
-      <textarea class="zone-sense" rows="2" placeholder="На цьому етапі закладається або зберігається валовий прибуток бізнесу."></textarea>
+    <div class="zone-footer">
+      <div class="zone-error-msg">⚠ Заповніть назву, хоча б 1 пункт відповідальності та сенс</div>
+      <button class="zone-accept-btn" onclick="acceptZone(this)">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Прийняти зону
+      </button>
     </div>
   `;
   container.appendChild(zone);
   updateZoneNumbers();
   updateAddZoneBtn();
-  // hide accepted state for section 3
+  // If section was already accepted — un-accept it when user adds new zone
   if (state.accepted.has(3)) {
     state.accepted.delete(3);
     updateSectionUI(3, false);
+    updateProgressBar();
+    updateCreateButton();
+  }
+}
+
+function acceptZone(btn) {
+  const zone = btn.closest('.zone-item');
+  const name = zone.querySelector('.zone-name')?.value.trim();
+  const resp = zone.querySelector('.zone-resp')?.value.trim();
+  const sense = zone.querySelector('.zone-sense')?.value.trim();
+  const respLines = parseLines(resp || '');
+  const errEl = zone.querySelector('.zone-error-msg');
+
+  if (!name || respLines.length < 1 || !sense) {
+    errEl.classList.add('visible');
+    zone.style.transform = 'translateX(-3px)';
+    setTimeout(() => { zone.style.transform = 'translateX(3px)'; }, 70);
+    setTimeout(() => { zone.style.transform = ''; }, 140);
+    return;
+  }
+  errEl.classList.remove('visible');
+  zone.classList.add('accepted');
+  btn.innerHTML = `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Редагувати`;
+  btn.onclick = function() { editZone(this); };
+}
+
+function editZone(btn) {
+  const zone = btn.closest('.zone-item');
+  zone.classList.remove('accepted');
+  btn.innerHTML = `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Прийняти зону`;
+  btn.onclick = function() { acceptZone(this); };
+  // Un-accept the whole section if it was accepted
+  if (state.accepted.has(3)) {
+    state.accepted.delete(3);
+    updateSectionUI(3, false);
+    updateProgressBar();
+    updateCreateButton();
   }
 }
 
@@ -1123,6 +1307,8 @@ function removeZone(btn) {
   if (state.accepted.has(3)) {
     state.accepted.delete(3);
     updateSectionUI(3, false);
+    updateProgressBar();
+    updateCreateButton();
   }
 }
 
@@ -1132,21 +1318,40 @@ function updateZoneNumbers() {
     const badge = z.querySelector('.zone-num-badge');
     if (badge) badge.textContent = `Зона ${i + 1}`;
     const removeBtn = z.querySelector('.zone-remove-btn');
-    if (removeBtn) removeBtn.style.display = i === 0 ? 'none' : '';
+    if (removeBtn) removeBtn.style.display = zones.length === 1 ? 'none' : '';
   });
 }
 
 function updateAddZoneBtn() {
   const btn = document.getElementById('addZoneBtn');
   const count = document.querySelectorAll('#zonesContainer .zone-item').length;
-  if (count >= 5) {
-    btn.style.opacity = '0.5';
+  const left = MAX_ZONES - count;
+  if (count >= MAX_ZONES) {
+    btn.style.opacity = '0.45';
     btn.style.cursor = 'not-allowed';
-    btn.innerHTML = `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Максимум 5 зон додано`;
+    btn.innerHTML = `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Максимум ${MAX_ZONES} зон додано`;
   } else {
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
-    btn.innerHTML = `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Додати зону відповідальності (${5 - count} залишилось)`;
+    btn.innerHTML = `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Додати зону відповідальності (ще ${left} з ${MAX_ZONES})`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ORG TYPE SELECTOR
+// ═══════════════════════════════════════════════════════════════════
+function selectOrgType(type) {
+  state.orgType = type;
+  document.getElementById('opt-matrix').classList.toggle('selected', type === 'matrix');
+  document.getElementById('opt-direct').classList.toggle('selected', type === 'direct');
+  document.getElementById('matrixFields').classList.toggle('org-fields-hidden', type !== 'matrix');
+  document.getElementById('directFields').classList.toggle('org-fields-hidden', type !== 'direct');
+  // un-accept section 6 if it was accepted
+  if (state.accepted.has(6)) {
+    state.accepted.delete(6);
+    updateSectionUI(6, false);
+    updateProgressBar();
+    updateCreateButton();
   }
 }
 
@@ -1165,15 +1370,8 @@ const validators = {
     return null;
   },
   3: () => {
-    const zones = document.querySelectorAll('#zonesContainer .zone-item');
-    if (zones.length === 0) return 'no_zones';
-    for (const zone of zones) {
-      const name = zone.querySelector('.zone-name')?.value.trim();
-      const resp = zone.querySelector('.zone-resp')?.value.trim();
-      const sense = zone.querySelector('.zone-sense')?.value.trim();
-      const respLines = parseLines(resp || '');
-      if (!name || !resp || !sense || respLines.length < 2) return 'incomplete_zone';
-    }
+    const acceptedZones = document.querySelectorAll('#zonesContainer .zone-item.accepted');
+    if (acceptedZones.length === 0) return 'no_accepted_zones';
     return null;
   },
   4: () => {
@@ -1187,11 +1385,15 @@ const validators = {
     return null;
   },
   6: () => {
-    const admin = document.getElementById('adminSub').value.trim();
-    const func = document.getElementById('funcSub').value.trim();
-    const reports = document.getElementById('directReports').value.trim();
-    if (!admin || !func || !reports) return 'incomplete';
-    if (parseLines(reports).length < 1) return 'incomplete';
+    if (!state.orgType) return 'no_type';
+    if (state.orgType === 'matrix') {
+      const admin = document.getElementById('adminSub').value.trim();
+      const func = document.getElementById('funcSub').value.trim();
+      if (!admin || !func) return 'incomplete';
+    } else {
+      const direct = document.getElementById('directSub').value.trim();
+      if (!direct) return 'incomplete';
+    }
     return null;
   }
 };
@@ -1219,7 +1421,7 @@ function acceptSection(n) {
     case 2: state.narrative = document.getElementById('narrative').value.trim(); break;
     case 3:
       state.zones = [];
-      document.querySelectorAll('#zonesContainer .zone-item').forEach((zone, i) => {
+      document.querySelectorAll('#zonesContainer .zone-item.accepted').forEach((zone, i) => {
         state.zones.push({
           name: zone.querySelector('.zone-name').value.trim(),
           responsibilities: parseLines(zone.querySelector('.zone-resp').value),
@@ -1230,9 +1432,15 @@ function acceptSection(n) {
     case 4: state.results = parseLines(document.getElementById('results').value); break;
     case 5: state.kpi = parseLines(document.getElementById('kpi').value); break;
     case 6:
-      state.adminSub = document.getElementById('adminSub').value.trim();
-      state.funcSub = document.getElementById('funcSub').value.trim();
-      state.directReports = parseLines(document.getElementById('directReports').value);
+      if (state.orgType === 'matrix') {
+        state.adminSub = document.getElementById('adminSub').value.trim();
+        state.funcSub = document.getElementById('funcSub').value.trim();
+        state.directSub = '';
+      } else {
+        state.directSub = document.getElementById('directSub').value.trim();
+        state.adminSub = '';
+        state.funcSub = '';
+      }
       break;
   }
 
@@ -1409,25 +1617,24 @@ async function buildDocument(data) {
   // ── МІСЦЕ В ОРГАНІЗАЦІЙНІЙ СТРУКТУРІ ─────────────────────────
   paragraphs.push(para([run('Місце в організаційній структурі', { bold: true, highlight: 'yellow' })]));
 
-  // Адміністративне підпорядкування: (bold, lightGray) + linebreak + value
-  paragraphs.push(para([
-    run('Адміністративне підпорядкування:', { bold: true, highlight: 'lightGray' }),
-    new TextRun({ break: 1 }),
-    run(data.adminSub)
-  ]));
-
-  // Функціональне підпорядкування:
-  paragraphs.push(para([
-    run('Функціональне підпорядкування:', { bold: true, highlight: 'lightGray' }),
-    new TextRun({ break: 1 }),
-    run(data.funcSub)
-  ]));
-
-  // Прямі підлеглі:
-  paragraphs.push(para([
-    run('Прямі підлеглі:', { bold: true, highlight: 'lightGray' })
-  ]));
-  data.directReports.forEach(r => paragraphs.push(bulletPara(r)));
+  if (data.orgType === 'matrix') {
+    paragraphs.push(para([
+      run('Адміністративне підпорядкування:', { bold: true, highlight: 'lightGray' }),
+      new TextRun({ break: 1 }),
+      run(data.adminSub)
+    ]));
+    paragraphs.push(para([
+      run('Функціональне підпорядкування:', { bold: true, highlight: 'lightGray' }),
+      new TextRun({ break: 1 }),
+      run(data.funcSub)
+    ]));
+  } else {
+    paragraphs.push(para([
+      run('Підпорядковується:', { bold: true, highlight: 'lightGray' }),
+      new TextRun({ break: 1 }),
+      run(data.directSub)
+    ]));
+  }
 
   // ── BUILD DOCUMENT ────────────────────────────────────────────
   const doc = new Document({
