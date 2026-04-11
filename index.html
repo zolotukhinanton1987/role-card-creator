@@ -1103,6 +1103,7 @@
     <h2>Готово до створення документу</h2>
     <p>Перевірте, що всі розділи прийнято, і натисніть «Створити»</p>
     <div class="progress-checklist" id="progressChecklist"></div>
+    <div id="docErrorMsg" style="color:var(--error);font-size:13px;margin:0 auto 16px;padding:12px 16px;background:var(--error-light);border-radius:8px;text-align:left;display:none;max-width:480px;line-height:1.5;"></div>
     <button class="create-btn" id="createBtn" onclick="createDocument()" disabled>
       Створити карту посади
     </button>
@@ -1113,15 +1114,26 @@
     <div class="result-icon">📄</div>
     <div class="result-title">Карта посади готова!</div>
     <div class="result-desc" id="resultDesc">Документ сформовано у форматі еталонної карти посади Промавтоматики</div>
-    <button class="download-btn" id="downloadBtn" onclick="downloadDocument()">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Завантажити .docx
-    </button>
-    <br>
-    <button class="regenerate-btn" onclick="regenerateDocument()">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-      Відновити документ
-    </button>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;">
+      <button class="download-btn" id="downloadBtn" onclick="downloadDocument()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Завантажити .docx
+      </button>
+      <button class="download-btn" onclick="openPreviewAgain()" style="background:var(--primary);box-shadow:0 4px 16px rgba(26,53,97,0.3);">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Переглянути
+      </button>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <button class="regenerate-btn" onclick="createNewCard()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Створити ще одну карту
+      </button>
+      <button class="regenerate-btn" onclick="regenerateDocument()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+        Переформувати документ
+      </button>
+    </div>
   </div>
 
 </div><!-- /container -->
@@ -1137,17 +1149,18 @@
 // STATE
 // ═══════════════════════════════════════════════════════════════════
 const state = {
-  accepted: new Set(),
+  accepted:     new Set(),
   positionName: '',
-  narrative: '',
-  zones: [],          // only accepted zones stored here
-  results: [],
-  kpi: [],
-  orgType: '',        // 'matrix' | 'direct'
-  adminSub: '',
-  funcSub: '',
-  directSub: '',
-  docBlob: null
+  narrative:    '',
+  zones:        [],   // only accepted zones stored here
+  results:      [],
+  kpi:          [],
+  orgType:      '',   // 'matrix' | 'direct'
+  adminSub:     '',
+  funcSub:      '',
+  directSub:    '',
+  docBlob:      null,
+  lastDocData:  null  // stored for "Переглянути" button
 };
 
 const SECTION_LABELS = {
@@ -1448,6 +1461,7 @@ function acceptSection(n) {
   updateSectionUI(n, true);
   updateProgressBar();
   updateCreateButton();
+  saveStateToStorage();
 
   // Auto-scroll to next section
   const nextSection = document.getElementById(`section${n + 1}`);
@@ -1595,8 +1609,8 @@ async function buildDocument(data) {
     // Сенс відповідальності: label + line break + text (in same paragraph)
     paragraphs.push(para([
       run('Сенс відповідальності:', { highlight: 'lightGray' }),
-      new TextRun({ break: 1 }),
-      run(zone.sense, { font: 'Consolas', size: 24 })
+      new TextRun({ text: '', break: 1 }),
+      run(zone.sense)
     ]));
 
     if (i < data.zones.length - 1) paragraphs.push(emptyPara());
@@ -1620,18 +1634,18 @@ async function buildDocument(data) {
   if (data.orgType === 'matrix') {
     paragraphs.push(para([
       run('Адміністративне підпорядкування:', { bold: true, highlight: 'lightGray' }),
-      new TextRun({ break: 1 }),
+      new TextRun({ text: '', break: 1 }),
       run(data.adminSub)
     ]));
     paragraphs.push(para([
       run('Функціональне підпорядкування:', { bold: true, highlight: 'lightGray' }),
-      new TextRun({ break: 1 }),
+      new TextRun({ text: '', break: 1 }),
       run(data.funcSub)
     ]));
   } else {
     paragraphs.push(para([
       run('Підпорядковується:', { bold: true, highlight: 'lightGray' }),
-      new TextRun({ break: 1 }),
+      new TextRun({ text: '', break: 1 }),
       run(data.directSub)
     ]));
   }
@@ -1674,20 +1688,30 @@ async function createDocument() {
   const btn = document.getElementById('createBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Формую документ...';
+  clearDocError();
 
   try {
-    const blob = await buildDocument({
-      positionName: state.positionName,
-      narrative: state.narrative,
-      zones: state.zones,
-      results: state.results,
-      kpi: state.kpi,
-      adminSub: state.adminSub,
-      funcSub: state.funcSub,
-      directReports: state.directReports
-    });
+    // Pre-flight sanity checks (these should never fail if UI is correct)
+    if (!window.docx) throw new Error('Бібліотека docx не завантажена. Перевірте інтернет-з\'єднання та оновіть сторінку.');
+    if (!state.positionName) throw new Error('Помилка стану: назва посади порожня. Перезавантажте розділ 1.');
+    if (!state.orgType) throw new Error('Помилка стану: тип структури не вибрано. Перезавантажте розділ 6.');
+    if (state.zones.length === 0) throw new Error('Помилка стану: немає прийнятих зон. Перезавантажте розділ 3.');
 
+    const data = {
+      positionName: state.positionName,
+      narrative:    state.narrative,
+      zones:        state.zones,
+      results:      state.results,
+      kpi:          state.kpi,
+      orgType:      state.orgType,
+      adminSub:     state.adminSub,
+      funcSub:      state.funcSub,
+      directSub:    state.directSub
+    };
+
+    const blob = await buildDocument(data);
     state.docBlob = blob;
+    state.lastDocData = { ...data };
 
     btn.innerHTML = '✓ Документ створено';
     btn.style.background = 'var(--success)';
@@ -1699,17 +1723,27 @@ async function createDocument() {
     resultArea.classList.add('visible');
     setTimeout(() => resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
 
+    // Open preview in new window
+    await openPreviewWindow(blob, data);
+
   } catch (err) {
     console.error('Document generation error:', err);
+    const msg = err?.message || String(err);
+    showDocError(msg);
     btn.disabled = false;
-    btn.innerHTML = '⚠ Помилка — спробуйте ще раз';
-    btn.style.background = 'var(--error)';
-    setTimeout(() => {
-      btn.innerHTML = 'Створити карту посади';
-      btn.style.background = '';
-      btn.disabled = false;
-    }, 3000);
+    btn.innerHTML = 'Створити карту посади';
+    btn.style.background = '';
   }
+}
+
+function showDocError(msg) {
+  const el = document.getElementById('docErrorMsg');
+  if (el) { el.textContent = '⚠ ' + msg; el.style.display = 'block'; }
+}
+
+function clearDocError() {
+  const el = document.getElementById('docErrorMsg');
+  if (el) { el.style.display = 'none'; el.textContent = ''; }
 }
 
 function downloadDocument() {
@@ -1728,14 +1762,241 @@ function regenerateDocument() {
   createDocument();
 }
 
+function createNewCard() {
+  clearDraft();
+  window.open(location.pathname || location.href.replace(/[?#].*/, ''), '_blank');
+}
+
+function openPreviewAgain() {
+  if (state.docBlob && state.lastDocData) {
+    openPreviewWindow(state.docBlob, state.lastDocData);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PREVIEW WINDOW
+// ═══════════════════════════════════════════════════════════════════
+async function openPreviewWindow(blob, data) {
+  // Convert blob to base64 for embedding in the preview HTML
+  const base64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = () => reject(new Error('Не вдалось зчитати документ для перегляду'));
+    reader.readAsDataURL(blob);
+  });
+
+  const safeName = (data.positionName || '').replace(/[^\wА-Яа-яІіЄєЇїҐґ\s-]/g, '').trim() || 'Карта посади';
+  const fileName = `Карта посади — ${safeName}.docx`;
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function jsStr(s) {
+    return String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,'\\n');
+  }
+
+  // Build HTML preview content
+  let content = '';
+  content += `<div class="card-title">Карта посади</div>`;
+  content += `<div class="card-position">${esc(data.positionName)}</div>`;
+
+  content += `<div class="section-h">Наратив</div>`;
+  content += `<div class="section-body">${esc(data.narrative).replace(/\n/g,'<br>')}</div>`;
+
+  content += `<div class="section-h">Зони відповідальності</div>`;
+  (data.zones || []).forEach((zone, i) => {
+    content += `<div class="zone-name-h">${i+1}. ${esc(zone.name)}</div>`;
+    content += `<div class="sub-label">Відповідає за:</div>`;
+    content += `<ul>${(zone.responsibilities||[]).map(r=>`<li>${esc(r)}</li>`).join('')}</ul>`;
+    content += `<div class="sub-label">Сенс відповідальності:</div>`;
+    content += `<div class="sense-text">${esc(zone.sense)}</div>`;
+  });
+
+  content += `<div class="section-h">Очікувані результати</div>`;
+  content += `<ul>${(data.results||[]).map(r=>`<li>${esc(r)}</li>`).join('')}</ul>`;
+
+  content += `<div class="section-h">Критерії перевірки</div>`;
+  content += `<ul>${(data.kpi||[]).map(k=>`<li>${esc(k)}</li>`).join('')}</ul>`;
+
+  content += `<div class="section-h">Місце в організаційній структурі</div>`;
+  if (data.orgType === 'matrix') {
+    content += `<div class="sub-label">Адміністративне підпорядкування:</div>`;
+    content += `<div class="org-text">${esc(data.adminSub)}</div>`;
+    content += `<div class="sub-label">Функціональне підпорядкування:</div>`;
+    content += `<div class="org-text">${esc(data.funcSub)}</div>`;
+  } else {
+    content += `<div class="sub-label">Підпорядковується:</div>`;
+    content += `<div class="org-text">${esc(data.directSub)}</div>`;
+  }
+
+  const newCardUrl = jsStr(location.pathname || location.href.replace(/[?#].*/, ''));
+
+  const previewHTML = `<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Карта посади — ${esc(safeName)}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Consolas,'Courier New',monospace;background:#f0f3f9;color:#1a2744}
+  .top-bar{background:#1a3561;color:#fff;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:0 2px 12px rgba(0,0,0,.2);flex-wrap:wrap;gap:10px}
+  .top-logo{font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px}
+  .top-logo span{background:#f5a623;color:#1a3561;font-weight:800;font-size:13px;border-radius:5px;padding:2px 8px}
+  .top-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .btn-dl{background:#f5a623;color:#1a3561;border:none;border-radius:7px;padding:8px 20px;font-family:Consolas,monospace;font-weight:700;font-size:13px;cursor:pointer;transition:.2s}
+  .btn-dl:hover{background:#d48a0f}
+  .btn-new{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:8px 16px;font-family:Consolas,monospace;font-size:12px;cursor:pointer;transition:.2s}
+  .btn-new:hover{background:rgba(255,255,255,.25)}
+  .doc{max-width:800px;margin:36px auto 60px;background:#fff;padding:48px 52px;box-shadow:0 2px 24px rgba(26,53,97,.12);border-radius:10px}
+  .card-title{text-align:center;font-size:22px;font-weight:700;margin-bottom:6px}
+  .card-position{text-align:center;font-size:20px;font-weight:700;background:#fff59d;padding:4px 12px;margin-bottom:24px;display:block}
+  .section-h{font-weight:700;background:#fff59d;padding:5px 10px;margin:22px 0 10px;font-size:14px;display:block}
+  .zone-name-h{font-weight:700;text-decoration:underline;background:#fff59d;padding:3px 8px;margin:14px 0 6px;display:block;font-size:13px}
+  .sub-label{background:#e8ecf0;padding:3px 8px;font-weight:600;font-size:12px;margin:8px 0 4px;display:inline-block}
+  .section-body{font-size:13px;line-height:1.7;padding:0 4px}
+  .sense-text{font-size:13px;padding:2px 4px 10px;color:#3a4a6a;line-height:1.6}
+  .org-text{font-size:13px;padding:2px 4px 12px;line-height:1.6}
+  ul{margin:4px 0 10px 22px;padding:0}
+  li{font-size:13px;line-height:1.7}
+  @media print{.top-bar{display:none}body{background:#fff}.doc{box-shadow:none;margin:0;border-radius:0;padding:32px}}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <div class="top-logo"><span>ПА</span> Промавтоматика — Карта посади</div>
+  <div class="top-actions">
+    <button class="btn-new" onclick="window.open('${newCardUrl}','_blank')">+ Створити ще</button>
+    <button class="btn-dl" onclick="dlDoc()">⬇ Завантажити .docx</button>
+  </div>
+</div>
+<div class="doc">
+${content}
+</div>
+<script>
+var _b='${base64}';
+var _f='${jsStr(fileName)}';
+function dlDoc(){
+  try{
+    var bin=atob(_b),bytes=new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    var blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download=_f;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
+  }catch(e){alert('Помилка: '+e.message);}
+}
+<\/script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) {
+    // Popup blocked — fall back to direct download
+    downloadDocument();
+    return;
+  }
+  win.document.write(previewHTML);
+  win.document.close();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LOCALSTORAGE — SAVE / RESTORE DRAFT
+// ═══════════════════════════════════════════════════════════════════
+const DRAFT_KEY = 'pa_card_draft_v2';
+
+function saveStateToStorage() {
+  try {
+    const snapshot = {
+      ts: Date.now(),
+      positionName: document.getElementById('positionName')?.value || '',
+      narrative:    document.getElementById('narrative')?.value    || '',
+      results:      document.getElementById('results')?.value      || '',
+      kpi:          document.getElementById('kpi')?.value           || '',
+      orgType:      state.orgType,
+      adminSub:     document.getElementById('adminSub')?.value     || '',
+      funcSub:      document.getElementById('funcSub')?.value      || '',
+      directSub:    document.getElementById('directSub')?.value    || '',
+      zones: Array.from(document.querySelectorAll('#zonesContainer .zone-item')).map(z => ({
+        name:  z.querySelector('.zone-name')?.value  || '',
+        resp:  z.querySelector('.zone-resp')?.value  || '',
+        sense: z.querySelector('.zone-sense')?.value || ''
+      }))
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot));
+  } catch(e) { /* localStorage may be unavailable — ignore */ }
+}
+
+function restoreStateFromStorage() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return false;
+    const snap = JSON.parse(raw);
+    if (!snap || !snap.ts) return false;
+    // Discard drafts older than 48 hours
+    if (Date.now() - snap.ts > 172800000) { localStorage.removeItem(DRAFT_KEY); return false; }
+
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+    set('positionName', snap.positionName);
+    set('narrative',    snap.narrative);
+    set('results',      snap.results);
+    set('kpi',          snap.kpi);
+    set('adminSub',     snap.adminSub);
+    set('funcSub',      snap.funcSub);
+    set('directSub',    snap.directSub);
+
+    // Update char counters
+    ['positionName','narrative','results','kpi'].forEach(id => {
+      const el = document.getElementById(id);
+      const cnt = document.getElementById(id + 'Count');
+      if (el && cnt) cnt.textContent = el.value.length;
+    });
+
+    // Restore org type
+    if (snap.orgType) selectOrgType(snap.orgType);
+
+    // Restore zones
+    if (snap.zones && snap.zones.length > 0) {
+      document.getElementById('zonesContainer').innerHTML = '';
+      zoneCount = 0;
+      snap.zones.forEach(zd => {
+        addZone();
+        const items = document.querySelectorAll('#zonesContainer .zone-item');
+        const z = items[items.length - 1];
+        if (z) {
+          z.querySelector('.zone-name').value  = zd.name  || '';
+          z.querySelector('.zone-resp').value  = zd.resp  || '';
+          z.querySelector('.zone-sense').value = zd.sense || '';
+        }
+      });
+    }
+
+    // Show toast
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a3561;color:#fff;padding:11px 22px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.25);display:flex;align-items:center;gap:12px;white-space:nowrap';
+    toast.innerHTML = '📋 Відновлено збережену чернетку &nbsp;<button onclick="this.closest(\'div\').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:12px">OK</button>';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 6000);
+    return true;
+  } catch(e) { return false; }
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════════
 function init() {
   setupCounters();
-  // Add 2 zones by default
-  addZone();
-  addZone();
+  // Try to restore saved draft; if none — add 2 default zones
+  const restored = restoreStateFromStorage();
+  if (!restored) {
+    addZone();
+    addZone();
+  }
   updateCreateButton();
 }
 

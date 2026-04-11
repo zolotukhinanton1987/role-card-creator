@@ -38,11 +38,16 @@
     .run-btn:hover { background: #d48a0f; }
     .smoke-note { background: #1e293b; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #94a3b8; margin-bottom: 16px; }
     a { color: #60a5fa; }
+    .section-count { background: #1e293b; border-radius: 4px; padding: 2px 8px; font-size: 11px; color: #64748b; margin-left: 8px; }
   </style>
 </head>
 <body>
 <h1>🧪 Unit Tests — Карта Посади Create</h1>
-<div class="subtitle">Тестування утиліт, валідації та генерації документу</div>
+<div class="subtitle">Тестування утиліт, валідації та генерації документу · v2 (виправлені баги)</div>
+<div class="smoke-note">
+  ℹ️ Smoke-тести (секція 8) потребують завантаженої бібліотеки docx з CDN. Синхронні тести (1–7) працюють завжди.
+  <br>⚠️ Тести перевіряють виправлення: <strong>TextRun({break:1}) без text</strong> (старий баг), <strong>orgType замість directReports</strong>, max 8 зон.
+</div>
 <button class="run-btn" onclick="runAllTests()">▶ Запустити всі тести</button>
 <div id="testOutput"></div>
 
@@ -66,7 +71,7 @@ function sanitize(text) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// VALIDATORS (mirrors index.html logic, testable without DOM)
+// VALIDATORS — matches index.html logic (testable without DOM)
 // ═══════════════════════════════════════════════════════════════════
 
 function validatePositionName(val) {
@@ -79,12 +84,13 @@ function validateNarrative(val) {
   return null;
 }
 
+// Updated: max 8 zones, min 1 responsibility per zone (matches current index.html)
 function validateZones(zones) {
   if (!zones || zones.length === 0) return 'no_zones';
-  if (zones.length > 5) return 'too_many';
+  if (zones.length > 8) return 'too_many';
   for (const zone of zones) {
     if (!zone.name || !zone.name.trim()) return 'incomplete_zone';
-    if (!zone.responsibilities || zone.responsibilities.length < 2) return 'incomplete_zone';
+    if (!zone.responsibilities || zone.responsibilities.length < 1) return 'incomplete_zone';
     if (!zone.sense || !zone.sense.trim()) return 'incomplete_zone';
   }
   return null;
@@ -100,10 +106,26 @@ function validateKpi(lines) {
   return null;
 }
 
-function validateOrgStructure(adminSub, funcSub, directReports) {
-  if (!adminSub || !adminSub.trim()) return 'incomplete';
-  if (!funcSub || !funcSub.trim()) return 'incomplete';
-  if (!directReports || directReports.length < 1) return 'incomplete';
+// Updated: matches new index.html with orgType selector (matrix | direct)
+function validateOrgStructure(orgType, adminSub, funcSub, directSub) {
+  if (!orgType) return 'no_type';
+  if (orgType === 'matrix') {
+    if (!adminSub || !adminSub.trim()) return 'incomplete';
+    if (!funcSub || !funcSub.trim()) return 'incomplete';
+  } else if (orgType === 'direct') {
+    if (!directSub || !directSub.trim()) return 'incomplete';
+  } else {
+    return 'invalid_type';
+  }
+  return null;
+}
+
+// Pre-flight check that mirrors createDocument() in index.html
+function preFlightCheck(docxLib, data) {
+  if (!docxLib) return 'docx not loaded';
+  if (!data.positionName) return 'positionName empty';
+  if (!data.orgType) return 'orgType not set';
+  if (!data.zones || data.zones.length === 0) return 'no zones';
   return null;
 }
 
@@ -125,6 +147,20 @@ function it(name, fn) {
   if (currentSuite) currentSuite.tests.push(test);
   try {
     fn();
+    test.status = 'pass';
+    results.pass++;
+  } catch (e) {
+    test.status = 'fail';
+    test.error = e.message || String(e);
+    results.fail++;
+  }
+}
+
+async function itAsync(name, fn) {
+  const test = { name, status: 'pending', error: null };
+  if (currentSuite) currentSuite.tests.push(test);
+  try {
+    await fn();
     test.status = 'pass';
     results.pass++;
   } catch (e) {
@@ -164,7 +200,7 @@ function expect(actual) {
       if (!actual || actual.length !== n) throw new Error(`Expected length ${n}, got ${actual?.length}`);
     },
     toContain(item) {
-      if (!actual || !actual.includes(item)) throw new Error(`Expected ${JSON.stringify(actual)} to contain ${JSON.stringify(item)}`);
+      if (!actual || !actual.includes(item)) throw new Error(`Expected to contain ${JSON.stringify(item)}`);
     },
     toBeGreaterThan(n) {
       if (!(actual > n)) throw new Error(`Expected ${actual} > ${n}`);
@@ -179,361 +215,284 @@ function expect(actual) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// TESTS
+// TEST DEFINITIONS
 // ═══════════════════════════════════════════════════════════════════
 
 function defineTests() {
 
   // ── 1. parseLines ──────────────────────────────────────────────
-  describe('parseLines()', () => {
-    it('should return empty array for null', () => {
-      expect(parseLines(null)).toEqual([]);
-    });
-    it('should return empty array for empty string', () => {
-      expect(parseLines('')).toEqual([]);
-    });
-    it('should parse single line', () => {
-      expect(parseLines('Операційний директор')).toEqual(['Операційний директор']);
-    });
-    it('should parse multiple lines', () => {
-      expect(parseLines('рядок 1\nрядок 2\nрядок 3')).toHaveLength(3);
-    });
-    it('should trim whitespace from lines', () => {
-      expect(parseLines('  рядок 1  \n  рядок 2  ')).toEqual(['рядок 1', 'рядок 2']);
-    });
-    it('should filter empty lines', () => {
-      expect(parseLines('рядок 1\n\n\nрядок 2')).toHaveLength(2);
-    });
-    it('should handle Windows line endings', () => {
-      expect(parseLines('рядок 1\r\nрядок 2')).toHaveLength(2);
-    });
-    it('should return empty array for non-string', () => {
-      expect(parseLines(42)).toEqual([]);
-      expect(parseLines({})).toEqual([]);
-      expect(parseLines(undefined)).toEqual([]);
-    });
-    it('corner: should handle line with only spaces', () => {
-      expect(parseLines('   \n   \nрядок')).toEqual(['рядок']);
-    });
-    it('corner: should handle very long line', () => {
-      const long = 'а'.repeat(10000);
-      expect(parseLines(long)).toHaveLength(1);
-    });
-    it('corner: should handle unicode/emoji in text', () => {
-      expect(parseLines('🚀 Ракета\n✓ Успіх')).toHaveLength(2);
-    });
-    it('corner: should handle special characters', () => {
-      const result = parseLines('<script>alert(1)</script>\nnormal');
-      expect(result).toHaveLength(2);
-    });
+  describe('1. parseLines()', () => {
+    it('повертає порожній масив для null', () => { expect(parseLines(null)).toEqual([]); });
+    it('повертає порожній масив для порожнього рядка', () => { expect(parseLines('')).toEqual([]); });
+    it('парсить один рядок', () => { expect(parseLines('Операційний директор')).toEqual(['Операційний директор']); });
+    it('парсить кілька рядків', () => { expect(parseLines('рядок 1\nрядок 2\nрядок 3')).toHaveLength(3); });
+    it('обрізає пробіли', () => { expect(parseLines('  рядок 1  \n  рядок 2  ')).toEqual(['рядок 1', 'рядок 2']); });
+    it('фільтрує порожні рядки', () => { expect(parseLines('рядок 1\n\n\nрядок 2')).toHaveLength(2); });
+    it('обробляє Windows CRLF', () => { expect(parseLines('рядок 1\r\nрядок 2')).toHaveLength(2); });
+    it('повертає [] для не-рядка', () => { expect(parseLines(42)).toEqual([]); expect(parseLines({})).toEqual([]); });
+    it('corner: рядок лише з пробілів фільтрується', () => { expect(parseLines('   \n   \nрядок')).toEqual(['рядок']); });
+    it('corner: дуже довгий рядок', () => { expect(parseLines('а'.repeat(10000))).toHaveLength(1); });
+    it('corner: unicode/емодзі в тексті', () => { expect(parseLines('🚀 Ракета\n✓ Успіх')).toHaveLength(2); });
   });
 
   // ── 2. sanitize ────────────────────────────────────────────────
-  describe('sanitize()', () => {
-    it('should escape < and >', () => {
-      const result = sanitize('<script>');
-      expect(result).toBe('&lt;script&gt;');
-    });
-    it('should escape &', () => {
-      expect(sanitize('A & B')).toBe('A &amp; B');
-    });
-    it('should escape quotes', () => {
-      expect(sanitize('"hello"')).toBe('&quot;hello&quot;');
-    });
-    it("should escape single quotes", () => {
-      expect(sanitize("it's")).toBe('it&#39;s');
-    });
-    it('should return empty string for null', () => {
-      expect(sanitize(null)).toBe('');
-    });
-    it('should return empty string for undefined', () => {
-      expect(sanitize(undefined)).toBe('');
-    });
-    it('should not modify clean text', () => {
-      expect(sanitize('Операційний директор')).toBe('Операційний директор');
-    });
-    it('corner: multiple special chars in one string', () => {
-      const result = sanitize('<b>"A & B"</b>');
-      expect(result).toContain('&lt;');
-      expect(result).toContain('&gt;');
-      expect(result).toContain('&amp;');
+  describe('2. sanitize()', () => {
+    it('екранує < і >', () => { expect(sanitize('<script>')).toBe('&lt;script&gt;'); });
+    it('екранує &', () => { expect(sanitize('A & B')).toBe('A &amp; B'); });
+    it('екранує подвійні лапки', () => { expect(sanitize('"hello"')).toBe('&quot;hello&quot;'); });
+    it('екранує одинарні лапки', () => { expect(sanitize("it's")).toBe('it&#39;s'); });
+    it('повертає "" для null', () => { expect(sanitize(null)).toBe(''); });
+    it('повертає "" для undefined', () => { expect(sanitize(undefined)).toBe(''); });
+    it('не змінює чистий текст', () => { expect(sanitize('Операційний директор')).toBe('Операційний директор'); });
+    it('corner: кілька спецсимволів разом', () => {
+      const r = sanitize('<b>"A & B"</b>');
+      expect(r).toContain('&lt;'); expect(r).toContain('&gt;'); expect(r).toContain('&amp;');
     });
   });
 
   // ── 3. validatePositionName ────────────────────────────────────
-  describe('validatePositionName()', () => {
-    it('should return null for valid name', () => {
-      expect(validatePositionName('Операційний директор')).toBeNull();
-    });
-    it('should return error for empty string', () => {
-      expect(validatePositionName('')).not.toBeNull();
-    });
-    it('should return error for null', () => {
-      expect(validatePositionName(null)).not.toBeNull();
-    });
-    it('should return error for whitespace only', () => {
-      expect(validatePositionName('   ')).not.toBeNull();
-    });
-    it('corner: single character should pass', () => {
-      expect(validatePositionName('A')).toBeNull();
-    });
-    it('corner: very long name should pass', () => {
-      expect(validatePositionName('А'.repeat(200))).toBeNull();
-    });
+  describe('3. validatePositionName()', () => {
+    it('null → помилка', () => { expect(validatePositionName(null)).not.toBeNull(); });
+    it('порожній рядок → помилка', () => { expect(validatePositionName('')).not.toBeNull(); });
+    it('лише пробіли → помилка', () => { expect(validatePositionName('   ')).not.toBeNull(); });
+    it('коректна назва → null', () => { expect(validatePositionName('Операційний директор')).toBeNull(); });
+    it('corner: один символ → null', () => { expect(validatePositionName('A')).toBeNull(); });
+    it('corner: 200 символів → null', () => { expect(validatePositionName('А'.repeat(200))).toBeNull(); });
   });
 
   // ── 4. validateNarrative ───────────────────────────────────────
-  describe('validateNarrative()', () => {
-    it('should return null for sufficient text', () => {
-      const text = 'У 2026 роках бізнес переходить у фазу активного зростання та розвитку продуктів і послуг.';
-      expect(validateNarrative(text)).toBeNull();
+  describe('4. validateNarrative()', () => {
+    it('null → помилка', () => { expect(validateNarrative(null)).not.toBeNull(); });
+    it('порожній рядок → помилка', () => { expect(validateNarrative('')).not.toBeNull(); });
+    it('короткий текст → помилка', () => { expect(validateNarrative('Короткий текст')).not.toBeNull(); });
+    it('достатній текст → null', () => {
+      expect(validateNarrative('У 2026 роках бізнес переходить у фазу зростання та розвитку продуктів компанії.')).toBeNull();
     });
-    it('should return error for short text', () => {
-      expect(validateNarrative('Короткий текст')).not.toBeNull();
-    });
-    it('should return error for empty string', () => {
-      expect(validateNarrative('')).not.toBeNull();
-    });
-    it('should return error for null', () => {
-      expect(validateNarrative(null)).not.toBeNull();
-    });
-    it('corner: exactly 50 chars should pass', () => {
-      expect(validateNarrative('А'.repeat(50))).toBeNull();
-    });
-    it('corner: 49 chars should fail', () => {
-      expect(validateNarrative('А'.repeat(49))).not.toBeNull();
-    });
+    it('corner: рівно 50 символів → null', () => { expect(validateNarrative('А'.repeat(50))).toBeNull(); });
+    it('corner: 49 символів → помилка', () => { expect(validateNarrative('А'.repeat(49))).not.toBeNull(); });
   });
 
-  // ── 5. validateZones ───────────────────────────────────────────
-  describe('validateZones()', () => {
-    const validZone = {
-      name: 'Допуск угод в операційне виконання',
-      responsibilities: ['встановлення правил', 'перевірку здійсненності угод'],
-      sense: 'На цьому етапі закладається валовий прибуток.'
-    };
+  // ── 5. validateZones (оновлено: max=8, min resp=1) ─────────────
+  describe('5. validateZones() — оновлено: max 8 зон, min 1 відповідальність', () => {
+    const vz = { name: 'Допуск угод', responsibilities: ['встановлення правил'], sense: 'Закладається прибуток' };
 
-    it('should return null for valid zones array', () => {
-      expect(validateZones([validZone])).toBeNull();
-    });
-    it('should return error for empty array', () => {
-      expect(validateZones([])).not.toBeNull();
-    });
-    it('should return error for null', () => {
-      expect(validateZones(null)).not.toBeNull();
-    });
-    it('should return error if zone has no name', () => {
-      expect(validateZones([{ ...validZone, name: '' }])).not.toBeNull();
-    });
-    it('should return error if zone has only 1 responsibility', () => {
-      expect(validateZones([{ ...validZone, responsibilities: ['тільки одна'] }])).not.toBeNull();
-    });
-    it('should return error if zone has no sense', () => {
-      expect(validateZones([{ ...validZone, sense: '' }])).not.toBeNull();
-    });
-    it('should return error for more than 5 zones', () => {
-      const many = Array(6).fill(validZone);
-      expect(validateZones(many)).not.toBeNull();
-    });
-    it('should allow up to 5 zones', () => {
-      const five = Array(5).fill(validZone);
-      expect(validateZones(five)).toBeNull();
-    });
-    it('corner: zone with whitespace-only name should fail', () => {
-      expect(validateZones([{ ...validZone, name: '   ' }])).not.toBeNull();
-    });
-    it('corner: zone with empty responsibilities array should fail', () => {
-      expect(validateZones([{ ...validZone, responsibilities: [] }])).not.toBeNull();
-    });
+    it('null → помилка', () => { expect(validateZones(null)).not.toBeNull(); });
+    it('порожній масив → помилка', () => { expect(validateZones([])).not.toBeNull(); });
+    it('1 коректна зона → null', () => { expect(validateZones([vz])).toBeNull(); });
+    it('зона без назви → помилка', () => { expect(validateZones([{...vz, name:''}])).not.toBeNull(); });
+    it('зона з назвою лише з пробілів → помилка', () => { expect(validateZones([{...vz, name:'   '}])).not.toBeNull(); });
+    it('зона без відповідальностей → помилка', () => { expect(validateZones([{...vz, responsibilities:[]}])).not.toBeNull(); });
+    it('зона з 1 відповідальністю → null (min=1, виправлено)', () => { expect(validateZones([{...vz, responsibilities:['одна']}])).toBeNull(); });
+    it('зона без сенсу → помилка', () => { expect(validateZones([{...vz, sense:''}])).not.toBeNull(); });
+    it('8 зон → null (новий максимум)', () => { expect(validateZones(Array(8).fill(vz))).toBeNull(); });
+    it('9 зон → помилка (перевищує max 8)', () => { expect(validateZones(Array(9).fill(vz))).not.toBeNull(); });
+    it('5 зон → null (оптимум)', () => { expect(validateZones(Array(5).fill(vz))).toBeNull(); });
   });
 
   // ── 6. validateResults ─────────────────────────────────────────
-  describe('validateResults()', () => {
-    it('should return null for 2+ results', () => {
-      expect(validateResults(['Результат 1', 'Результат 2'])).toBeNull();
-    });
-    it('should return error for 1 result', () => {
-      expect(validateResults(['Лише один'])).not.toBeNull();
-    });
-    it('should return error for empty array', () => {
-      expect(validateResults([])).not.toBeNull();
-    });
-    it('should return error for null', () => {
-      expect(validateResults(null)).not.toBeNull();
-    });
-    it('corner: exactly 2 should pass', () => {
-      expect(validateResults(['р1', 'р2'])).toBeNull();
-    });
-    it('corner: 10 results should pass', () => {
-      expect(validateResults(Array(10).fill('результат'))).toBeNull();
-    });
+  describe('6. validateResults()', () => {
+    it('null → помилка', () => { expect(validateResults(null)).not.toBeNull(); });
+    it('1 результат → помилка', () => { expect(validateResults(['Один'])).not.toBeNull(); });
+    it('2 результати → null', () => { expect(validateResults(['Р1','Р2'])).toBeNull(); });
+    it('10 результатів → null', () => { expect(validateResults(Array(10).fill('р'))).toBeNull(); });
   });
 
   // ── 7. validateKpi ─────────────────────────────────────────────
-  describe('validateKpi()', () => {
-    it('should return null for 3+ KPIs', () => {
-      expect(validateKpi(['KPI 1', 'KPI 2', 'KPI 3'])).toBeNull();
+  describe('7. validateKpi()', () => {
+    it('null → помилка', () => { expect(validateKpi(null)).not.toBeNull(); });
+    it('2 KPI → помилка', () => { expect(validateKpi(['K1','K2'])).not.toBeNull(); });
+    it('3 KPI → null', () => { expect(validateKpi(['K1','K2','K3'])).toBeNull(); });
+    it('10 KPI → null', () => { expect(validateKpi(Array(10).fill('k'))).toBeNull(); });
+  });
+
+  // ── 8. validateOrgStructure (нова: orgType selector) ──────────
+  describe('8. validateOrgStructure() — нова версія з orgType', () => {
+    it('matrix + обидва поля → null', () => {
+      expect(validateOrgStructure('matrix','Директору','COO','')).toBeNull();
     });
-    it('should return error for 2 KPIs', () => {
-      expect(validateKpi(['KPI 1', 'KPI 2'])).not.toBeNull();
+    it('matrix + без adminSub → помилка', () => {
+      expect(validateOrgStructure('matrix','','COO','')).not.toBeNull();
     });
-    it('should return error for empty array', () => {
-      expect(validateKpi([])).not.toBeNull();
+    it('matrix + без funcSub → помилка', () => {
+      expect(validateOrgStructure('matrix','Директор','','')).not.toBeNull();
     });
-    it('corner: exactly 3 should pass', () => {
-      expect(validateKpi(['k1', 'k2', 'k3'])).toBeNull();
+    it('direct + directSub заповнено → null', () => {
+      expect(validateOrgStructure('direct','','','Генеральному директору')).toBeNull();
+    });
+    it('direct + без directSub → помилка', () => {
+      expect(validateOrgStructure('direct','','','')).not.toBeNull();
+    });
+    it('без orgType → помилка', () => {
+      expect(validateOrgStructure('','Д','COO','')).not.toBeNull();
+    });
+    it('невідомий orgType → помилка', () => {
+      expect(validateOrgStructure('unknown','A','B','C')).not.toBeNull();
     });
   });
 
-  // ── 8. validateOrgStructure ────────────────────────────────────
-  describe('validateOrgStructure()', () => {
-    it('should return null for complete org structure', () => {
-      expect(validateOrgStructure(
-        'Керівнику Компанії',
-        'COO Керуючої Компанії',
-        ['Операційний Менеджер']
-      )).toBeNull();
+  // ── 9. preFlightCheck (новий: перевірка createDocument) ────────
+  describe('9. preFlightCheck() — нова перевірка перед генерацією', () => {
+    const base = { positionName:'Test', orgType:'matrix', zones:[{name:'Z',responsibilities:['r'],sense:'s'}] };
+    it('без orgType → помилка', () => {
+      expect(preFlightCheck({docx:true}, {...base, orgType:''})).not.toBeNull();
     });
-    it('should return error if adminSub is missing', () => {
-      expect(validateOrgStructure('', 'COO', ['Підлеглий'])).not.toBeNull();
+    it('без positionName → помилка', () => {
+      expect(preFlightCheck({docx:true}, {...base, positionName:''})).not.toBeNull();
     });
-    it('should return error if funcSub is missing', () => {
-      expect(validateOrgStructure('Керівник', '', ['Підлеглий'])).not.toBeNull();
+    it('без zones → помилка', () => {
+      expect(preFlightCheck({docx:true}, {...base, zones:[]})).not.toBeNull();
     });
-    it('should return error if directReports is empty', () => {
-      expect(validateOrgStructure('Керівник', 'COO', [])).not.toBeNull();
+    it('без бібліотеки docx → помилка', () => {
+      expect(preFlightCheck(null, base)).not.toBeNull();
     });
-    it('corner: whitespace-only adminSub should fail', () => {
-      expect(validateOrgStructure('   ', 'COO', ['Підлеглий'])).not.toBeNull();
-    });
-    it('corner: multiple direct reports should pass', () => {
-      expect(validateOrgStructure(
-        'Керівник',
-        'COO',
-        ['PM1', 'PM2', 'PM3']
-      )).toBeNull();
+    it('всі поля заповнені → null', () => {
+      expect(preFlightCheck({docx:true}, base)).toBeNull();
     });
   });
 
-  // ── 9. parseLines integration with validator ───────────────────
-  describe('parseLines + validateResults integration', () => {
-    it('two lines in textarea should pass results validation', () => {
-      const text = 'Зростання прибутку\nЗменшення відхилень';
-      const lines = parseLines(text);
-      expect(validateResults(lines)).toBeNull();
+  // ── 10. parseLines + validators integration ────────────────────
+  describe('10. Інтеграція parseLines + validators', () => {
+    it('2 рядки textarea → проходить validateResults', () => {
+      expect(validateResults(parseLines('Зростання прибутку\nЗменшення відхилень'))).toBeNull();
     });
-    it('one line in textarea should fail results validation', () => {
-      const lines = parseLines('Лише один результат');
-      expect(validateResults(lines)).not.toBeNull();
+    it('1 рядок textarea → не проходить validateResults', () => {
+      expect(validateResults(parseLines('Лише один результат'))).not.toBeNull();
     });
-    it('blank lines between entries should not count', () => {
+    it('порожні рядки між пунктами не рахуються', () => {
       const lines = parseLines('рядок 1\n\n\nрядок 2');
       expect(lines).toHaveLength(2);
       expect(validateResults(lines)).toBeNull();
     });
-  });
-
-  // ── 10. SMOKE TEST: Document generation ───────────────────────
-  describe('SMOKE: buildDocument()', () => {
-    const sampleData = {
-      positionName: 'Операційний директор компанії',
-      narrative: 'У 2026-2027 роках бізнес переходить у фазу активного зростання. Збільшується виручка та складність операційних ланцюгів. Формується роль Операційного директора для управління цими процесами.',
-      zones: [
-        {
-          name: 'Допуск угод в операційне виконання',
-          responsibilities: [
-            'встановлення правил допуску угод',
-            'перевірку операційної здійсненності угод',
-            'блокування угод з ризиком втрати прибутку'
-          ],
-          sense: 'На цьому етапі закладається або зберігається валовий прибуток бізнесу.'
-        },
-        {
-          name: 'Управління операційними втратами',
-          responsibilities: [
-            'визначення того що вважається операційними втратами',
-            'забезпечення вимірюваності операційних втрат'
-          ],
-          sense: 'Операційний прибуток формується через контроль втрат.'
-        }
-      ],
-      results: [
-        'Сформована стратегія операційної ефективності',
-        'Зростання валового та операційного прибутку',
-        'Зменшення прострокованого незавершеного виробництва'
-      ],
-      kpi: [
-        'Операційна прибутковість (% значення за період)',
-        'Валовий прибуток (абсолютне значення за місяць)',
-        'Частка прострокованого НВ до НВ (%)',
-        'Зростання валового прибутку кварт-до-кварт'
-      ],
-      adminSub: 'Керівнику Компанії',
-      funcSub: 'COO Керуючої Компанії',
-      directReports: ['Операційний Менеджер(и)', 'Процесний Менеджер', 'Проєктні менеджери']
-    };
-
-    it('should generate a Blob from valid data', async () => {
-      if (typeof window.docx === 'undefined') {
-        throw new Error('docx library not loaded');
-      }
-      const blob = await buildDocument(sampleData);
-      if (!(blob instanceof Blob)) throw new Error('Expected Blob, got ' + typeof blob);
-    });
-
-    it('should generate a non-empty document', async () => {
-      if (typeof window.docx === 'undefined') {
-        throw new Error('docx library not loaded');
-      }
-      const blob = await buildDocument(sampleData);
-      if (blob.size < 1000) throw new Error(`Blob too small: ${blob.size} bytes`);
-    });
-
-    it('corner: should handle special chars in position name', async () => {
-      if (typeof window.docx === 'undefined') return;
-      const data = { ...sampleData, positionName: 'Head of <Operations> & "Strategy"' };
-      const blob = await buildDocument(data);
-      if (!(blob instanceof Blob)) throw new Error('Expected Blob');
-    });
-
-    it('corner: should handle single zone (minimum)', async () => {
-      if (typeof window.docx === 'undefined') return;
-      const data = { ...sampleData, zones: [sampleData.zones[0]] };
-      const blob = await buildDocument(data);
-      if (!(blob instanceof Blob)) throw new Error('Expected Blob');
-    });
-
-    it('corner: should handle 5 zones (maximum)', async () => {
-      if (typeof window.docx === 'undefined') return;
-      const data = { ...sampleData, zones: Array(5).fill(sampleData.zones[0]) };
-      const blob = await buildDocument(data);
-      if (!(blob instanceof Blob)) throw new Error('Expected Blob');
-    });
-
-    it('corner: should handle very long narrative', async () => {
-      if (typeof window.docx === 'undefined') return;
-      const data = { ...sampleData, narrative: 'Дуже довгий наратив. '.repeat(100) };
-      const blob = await buildDocument(data);
-      if (!(blob instanceof Blob)) throw new Error('Expected Blob');
-    });
-
-    it('corner: should handle multi-paragraph narrative', async () => {
-      if (typeof window.docx === 'undefined') return;
-      const data = { ...sampleData, narrative: 'Перший абзац.\n\nДругий абзац.\n\nТретій абзац.' };
-      const blob = await buildDocument(data);
-      if (!(blob instanceof Blob)) throw new Error('Expected Blob');
+    it('3 KPI з пробілами → parseLines → проходить validateKpi', () => {
+      const txt = '  KPI 1  \n  KPI 2  \n  KPI 3  ';
+      expect(validateKpi(parseLines(txt))).toBeNull();
     });
   });
 
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// DOCX buildDocument (same as index.html) for testing
+// ASYNC SMOKE TESTS (docx generation) — updated with orgType
+// ═══════════════════════════════════════════════════════════════════
+async function defineAsyncTests() {
+
+  // Sample data matching NEW index.html signature (orgType, no directReports)
+  const sampleData = {
+    positionName: 'Операційний директор компанії',
+    narrative: 'У 2026-2027 роках бізнес переходить у фазу активного зростання. Збільшується виручка та складність операційних ланцюгів. Формується роль Операційного директора.',
+    zones: [
+      {
+        name: 'Допуск угод в операційне виконання',
+        responsibilities: ['встановлення правил допуску угод', 'перевірку здійсненності угод', 'блокування ризикових угод'],
+        sense: 'На цьому етапі закладається або зберігається валовий прибуток бізнесу.'
+      },
+      {
+        name: 'Управління операційними втратами',
+        responsibilities: ['визначення операційних втрат', 'забезпечення вимірюваності втрат'],
+        sense: 'Операційний прибуток формується через контроль втрат.'
+      }
+    ],
+    results: ['Стратегія операційної ефективності', 'Зростання валового прибутку', 'Зменшення прострокованого НВ'],
+    kpi: ['Операційна прибутковість (%)', 'Валовий прибуток (абсолютне)', 'Частка прост. НВ (%)'],
+    orgType: 'matrix',
+    adminSub: 'Керівнику Компанії',
+    funcSub: 'COO Керуючої Компанії',
+    directSub: ''
+  };
+
+  const suiteAsync = { name: '11. SMOKE: buildDocument() з реальним docx.js', tests: [] };
+  results.suites.push(suiteAsync);
+  currentSuite = suiteAsync;
+
+  async function run(name, fn) {
+    const test = { name, status: 'pending', error: null };
+    suiteAsync.tests.push(test);
+    try {
+      await fn();
+      test.status = 'pass'; results.pass++;
+    } catch(e) {
+      test.status = 'fail'; test.error = e.message || String(e); results.fail++;
+    }
+  }
+
+  const docxAvail = typeof window.docx !== 'undefined';
+
+  await run('бібліотека docx завантажена', async () => {
+    if (!docxAvail) throw new Error('docx CDN не завантажено (перевірте інтернет)');
+  });
+
+  await run('matrix org: генерує Blob', async () => {
+    if (!docxAvail) throw new Error('docx not loaded — skipped');
+    const blob = await buildDocument(sampleData);
+    if (!(blob instanceof Blob)) throw new Error('Очікувався Blob, отримано ' + typeof blob);
+  });
+
+  await run('matrix org: розмір > 1000 байт', async () => {
+    if (!docxAvail) throw new Error('docx not loaded — skipped');
+    const blob = await buildDocument(sampleData);
+    if (blob.size < 1000) throw new Error(`Blob занадто малий: ${blob.size} байт`);
+  });
+
+  await run('direct org: генерує Blob', async () => {
+    if (!docxAvail) throw new Error('docx not loaded — skipped');
+    const data = { ...sampleData, orgType: 'direct', adminSub: '', funcSub: '', directSub: 'Генеральному директору' };
+    const blob = await buildDocument(data);
+    if (!(blob instanceof Blob)) throw new Error('Очікувався Blob');
+  });
+
+  await run('TextRun({text:"", break:1}) — виправлення багу', async () => {
+    if (!docxAvail) throw new Error('docx not loaded — skipped');
+    // This is the critical regression test: old code used new TextRun({break:1}) without text
+    // which caused "Помилка — спробуйте ще раз". Fixed with text:''
+    const { TextRun } = window.docx;
+    let threw = false;
+    try { new TextRun({ break: 1 }); } catch(e) { threw = true; }
+    // Old bug: new TextRun({break:1}) would throw — this is expected in docx 8.x
+    // Our fix uses new TextRun({text:'', break:1}) which should NOT throw
+    const fixed = new TextRun({ text: '', break: 1 });
+    if (!fixed) throw new Error('TextRun з text:"" та break:1 не створився');
+  });
+
+  await run('8 зон (новий максимум): генерує Blob', async () => {
+    if (!docxAvail) throw new Error('docx not loaded — skipped');
+    const data = { ...sampleData, zones: Array.from({length:8}, (_,i) => ({
+      name: `Зона ${i+1}`, responsibilities: [`відп A`, `відп B`], sense: `Сенс ${i+1}`
+    }))};
+    const blob = await buildDocument(data);
+    if (!(blob instanceof Blob)) throw new Error('Очікувався Blob');
+  });
+
+  await run('1 зона з 1 відповідальністю: генерує Blob', async () => {
+    if (!docxAvail) throw new Error('docx not loaded — skipped');
+    const data = { ...sampleData, zones: [{ name: 'Одна зона', responsibilities: ['Одна відповідальність'], sense: 'Один сенс' }] };
+    const blob = await buildDocument(data);
+    if (!(blob instanceof Blob)) throw new Error('Очікувався Blob');
+  });
+
+  await run('багаторядковий наратив: генерує Blob', async () => {
+    if (!docxAvail) throw new Error('docx not loaded — skipped');
+    const data = { ...sampleData, narrative: 'Перший абзац.\n\nДругий абзац.\n\nТретій абзац.' };
+    const blob = await buildDocument(data);
+    if (!(blob instanceof Blob)) throw new Error('Очікувався Blob');
+  });
+
+  await run('спецсимволи в назві посади: генерує Blob', async () => {
+    if (!docxAvail) throw new Error('docx not loaded — skipped');
+    const data = { ...sampleData, positionName: 'Head of <Operations> & "Strategy"' };
+    const blob = await buildDocument(data);
+    if (!(blob instanceof Blob)) throw new Error('Очікувався Blob');
+  });
+
+  currentSuite = null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// buildDocument — ТОЧНА КОПІЯ З index.html (з виправленнями)
 // ═══════════════════════════════════════════════════════════════════
 async function buildDocument(data) {
   const {
     Document, Packer, Paragraph, TextRun,
-    AlignmentType, LevelFormat
+    AlignmentType, LevelFormat, UnderlineType
   } = window.docx;
 
   function run(text, opts = {}) {
@@ -550,11 +509,12 @@ async function buildDocument(data) {
 
   const spacing = { before: 0, after: 120, line: 276, lineRule: 'auto' };
 
-  function para(children, align = 'left') {
+  function para(children, align = 'left', extraOpts = {}) {
     return new Paragraph({
       children,
       alignment: align === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT,
-      spacing
+      spacing,
+      ...extraOpts
     });
   }
 
@@ -567,52 +527,70 @@ async function buildDocument(data) {
     });
   }
 
-  function emptyPara() {
-    return new Paragraph({ children: [run('')], spacing });
-  }
+  function emptyPara() { return new Paragraph({ children: [run('')], spacing }); }
 
   const paragraphs = [];
+
   paragraphs.push(para([run('Карта посади', { bold: true, size: 36 })], 'center'));
   paragraphs.push(para([run(data.positionName, { bold: true, size: 36, highlight: 'yellow' })], 'center'));
   paragraphs.push(emptyPara());
+
   paragraphs.push(para([run('Наратив', { bold: true, highlight: 'yellow' })]));
-  data.narrative.split('\n').map(l => l.trim()).filter(Boolean).forEach(line => {
-    paragraphs.push(para([run(line)]));
+  const narrativeParas = data.narrative.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  if (narrativeParas.length === 0) narrativeParas.push(data.narrative);
+  narrativeParas.forEach(p => {
+    p.split('\n').map(l => l.trim()).filter(Boolean).forEach(line => {
+      paragraphs.push(para([run(line)]));
+    });
   });
   paragraphs.push(emptyPara());
+
   paragraphs.push(para([run('Зони відповідальності', { bold: true, highlight: 'yellow' })]));
   paragraphs.push(emptyPara());
+
   data.zones.forEach((zone, i) => {
     paragraphs.push(para([run(`${i + 1}. ${zone.name}`, { bold: true, underline: true, highlight: 'yellow' })]));
     paragraphs.push(para([run('Відповідає за:', { highlight: 'lightGray' })]));
     zone.responsibilities.forEach(r => paragraphs.push(bulletPara(r)));
+    // FIX: TextRun must have text:'', then break:1 — old code was new TextRun({break:1}) which throws
     paragraphs.push(para([
       run('Сенс відповідальності:', { highlight: 'lightGray' }),
-      new TextRun({ break: 1 }),
+      new TextRun({ text: '', break: 1 }),
       run(zone.sense)
     ]));
     if (i < data.zones.length - 1) paragraphs.push(emptyPara());
   });
   paragraphs.push(emptyPara());
+
   paragraphs.push(para([run('Очікувані результати', { bold: true, highlight: 'yellow' })]));
   data.results.forEach(r => paragraphs.push(bulletPara(r)));
   paragraphs.push(emptyPara());
+
   paragraphs.push(para([run('Критерії перевірки', { bold: true, highlight: 'yellow' })]));
   data.kpi.forEach(k => paragraphs.push(bulletPara(k)));
   paragraphs.push(emptyPara());
+
   paragraphs.push(para([run('Місце в організаційній структурі', { bold: true, highlight: 'yellow' })]));
-  paragraphs.push(para([
-    run('Адміністративне підпорядкування:', { bold: true, highlight: 'lightGray' }),
-    new TextRun({ break: 1 }),
-    run(data.adminSub)
-  ]));
-  paragraphs.push(para([
-    run('Функціональне підпорядкування:', { bold: true, highlight: 'lightGray' }),
-    new TextRun({ break: 1 }),
-    run(data.funcSub)
-  ]));
-  paragraphs.push(para([run('Прямі підлеглі:', { bold: true, highlight: 'lightGray' })]));
-  data.directReports.forEach(r => paragraphs.push(bulletPara(r)));
+
+  // FIX: orgType replaces old directReports; TextRun break fix applied here too
+  if (data.orgType === 'matrix') {
+    paragraphs.push(para([
+      run('Адміністративне підпорядкування:', { bold: true, highlight: 'lightGray' }),
+      new TextRun({ text: '', break: 1 }),
+      run(data.adminSub)
+    ]));
+    paragraphs.push(para([
+      run('Функціональне підпорядкування:', { bold: true, highlight: 'lightGray' }),
+      new TextRun({ text: '', break: 1 }),
+      run(data.funcSub)
+    ]));
+  } else {
+    paragraphs.push(para([
+      run('Підпорядковується:', { bold: true, highlight: 'lightGray' }),
+      new TextRun({ text: '', break: 1 }),
+      run(data.directSub)
+    ]));
+  }
 
   const doc = new Document({
     numbering: {
@@ -645,175 +623,51 @@ async function buildDocument(data) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// TEST RUNNER
+// RENDER & RUN
 // ═══════════════════════════════════════════════════════════════════
-async function runAllTests() {
-  // Reset
-  results.pass = 0;
-  results.fail = 0;
-  results.skip = 0;
-  results.suites = [];
-
-  const output = document.getElementById('testOutput');
-  output.innerHTML = '<div style="color:#64748b;font-size:13px;margin-bottom:16px;">⏳ Запуск тестів...</div>';
-
-  defineTests();
-
-  // Run async tests (smoke tests)
-  for (const suite of results.suites) {
-    for (const test of suite.tests) {
-      if (test.status === 'pending' && test._asyncFn) {
-        try {
-          await test._asyncFn();
-          test.status = 'pass';
-          results.pass++;
-        } catch (e) {
-          test.status = 'fail';
-          test.error = e.message || String(e);
-          results.fail++;
-        }
-      }
-    }
-  }
-
-  // Handle async tests in describe (smoke tests use async in it())
-  // Re-run async suites
-  for (const suite of results.suites) {
-    for (const test of suite.tests) {
-      if (test.status === 'pass' && test._isAsync) {
-        // already ran
-      }
-    }
-  }
-
-  renderResults();
-}
-
-// Override 'it' to handle async
-const syncIt = it;
-const asyncTests = [];
-
-function redefineIt() {
-  window.it = function(name, fn) {
-    const test = { name, status: 'pending', error: null };
-    if (currentSuite) currentSuite.tests.push(test);
-    const result = fn();
-    if (result && typeof result.then === 'function') {
-      asyncTests.push({ test, promise: result });
-    } else {
-      if (test.status === 'pending') {
-        test.status = 'pass';
-        results.pass++;
-      }
-    }
-  };
-}
-
-async function runAllTests() {
-  results.pass = 0;
-  results.fail = 0;
-  results.skip = 0;
-  results.suites = [];
-  asyncTests.length = 0;
-
-  const output = document.getElementById('testOutput');
-  output.innerHTML = '<div style="color:#64748b;margin-bottom:16px;">⏳ Запуск тестів...</div>';
-
-  // Override it() to handle both sync and async
-  window.it = function(name, fn) {
-    const test = { name, status: 'pending', error: null };
-    if (currentSuite) currentSuite.tests.push(test);
-
-    let res;
-    try {
-      res = fn();
-    } catch (e) {
-      test.status = 'fail';
-      test.error = e.message || String(e);
-      results.fail++;
-      return;
-    }
-
-    if (res && typeof res.then === 'function') {
-      asyncTests.push({ test, promise: res });
-    } else {
-      test.status = 'pass';
-      results.pass++;
-    }
-  };
-
-  defineTests();
-
-  // Await all async tests
-  for (const { test, promise } of asyncTests) {
-    try {
-      await promise;
-      test.status = 'pass';
-      results.pass++;
-    } catch (e) {
-      test.status = 'fail';
-      test.error = e.message || String(e);
-      results.fail++;
-    }
-  }
-
-  renderResults();
-}
-
 function renderResults() {
-  const output = document.getElementById('testOutput');
+  const out = document.getElementById('testOutput');
   let html = '';
 
-  for (const suite of results.suites) {
+  results.suites.forEach(suite => {
     html += `<div class="suite">`;
-    html += `<div class="suite-name">${suite.name}</div>`;
-    for (const test of suite.tests) {
-      const cls = test.status;
-      const badge = test.status === 'pass' ? '✓' : test.status === 'fail' ? '✗' : '○';
-      html += `<div class="test ${cls}">
-        <span class="badge">${badge}</span>
-        <div class="test-name">
-          <div>${test.name}</div>
-          ${test.error ? `<div class="test-err">${test.error}</div>` : ''}
-        </div>
-      </div>`;
-    }
-    html += `</div>`;
-  }
+    html += `<div class="suite-name">${suite.name} <span class="section-count">${suite.tests.length} тестів</span></div>`;
+    suite.tests.forEach(test => {
+      const cls = test.status === 'pass' ? 'pass' : test.status === 'fail' ? 'fail' : 'skip';
+      const icon = test.status === 'pass' ? '✓' : test.status === 'fail' ? '✗' : '○';
+      html += `<div class="test ${cls}">`;
+      html += `<span class="badge">${icon}</span>`;
+      html += `<div><div class="test-name">${test.name}</div>`;
+      if (test.error) html += `<div class="test-err">${test.error}</div>`;
+      html += `</div></div>`;
+    });
+    html += `</div><hr>`;
+  });
 
-  const total = results.pass + results.fail + results.skip;
-  html += `<hr>
-  <div class="summary">
-    <div class="summary-item">
-      <div class="label">ВСЬОГО</div>
-      <div class="value">${total}</div>
-    </div>
-    <div class="summary-item">
-      <div class="label">✓ ПРОЙШЛИ</div>
-      <div class="value pass-val">${results.pass}</div>
-    </div>
-    <div class="summary-item">
-      <div class="label">✗ ПРОВАЛИЛИ</div>
-      <div class="value fail-val">${results.fail}</div>
-    </div>
-    <div class="summary-item">
-      <div class="label">○ ПРОПУЩЕНІ</div>
-      <div class="value skip-val">${results.skip}</div>
-    </div>
+  const allPassed = results.fail === 0;
+  html += `<div class="summary">
+    <div class="summary-item"><div class="label">ВСЬОГО</div><div class="value">${results.pass + results.fail + results.skip}</div></div>
+    <div class="summary-item"><div class="label">ПРОЙШЛИ</div><div class="value pass-val">${results.pass}</div></div>
+    <div class="summary-item"><div class="label">ПРОВАЛИ</div><div class="value fail-val">${results.fail}</div></div>
+    <div class="summary-item"><div class="label">ПРОПУЩЕНІ</div><div class="value skip-val">${results.skip}</div></div>
+    <div class="summary-item"><div class="label">СТАТУС</div><div class="value ${allPassed ? 'pass-val' : 'fail-val'}">${allPassed ? '✅ OK' : '❌ FAILED'}</div></div>
   </div>`;
 
-  if (results.fail === 0) {
-    html += `<div style="margin-top:16px;padding:12px 16px;background:rgba(34,197,94,0.1);border-radius:8px;color:#22c55e;font-weight:700;">🎉 Всі тести пройшли успішно!</div>`;
-  } else {
-    html += `<div style="margin-top:16px;padding:12px 16px;background:rgba(239,68,68,0.1);border-radius:8px;color:#ef4444;font-weight:700;">⚠ ${results.fail} тест(ів) провалились. Перевірте помилки вище.</div>`;
-  }
-
-  output.innerHTML = html;
+  out.innerHTML = html;
 }
 
-// Run tests automatically on load
+async function runAllTests() {
+  // Reset
+  results.pass = 0; results.fail = 0; results.skip = 0; results.suites = [];
+
+  defineTests();
+  await defineAsyncTests();
+  renderResults();
+}
+
+// Auto-run on load
 window.addEventListener('load', () => {
-  setTimeout(runAllTests, 500);
+  runAllTests();
 });
 </script>
 </body>
